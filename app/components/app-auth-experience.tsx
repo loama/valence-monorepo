@@ -17,7 +17,8 @@ import { Capacitor, type PluginListenerHandle } from "@capacitor/core";
 import { PushNotifications } from "@capacitor/push-notifications";
 import {
   CapacitorUpdater,
-  type BundleInfo
+  type BundleInfo,
+  type LatestVersion
 } from "@capgo/capacitor-updater";
 import type { Provider, User } from "@supabase/supabase-js";
 import {
@@ -54,7 +55,7 @@ import { Label } from "@/components/ui/label";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
-const appBasePath = process.env.NEXT_PUBLIC_APP_BASE_PATH ?? "/app";
+const appRouteBasePath = "/app";
 const nativeRedirectUrl =
   process.env.NEXT_PUBLIC_APP_NATIVE_REDIRECT_URL ??
   "valence://auth/callback";
@@ -77,28 +78,28 @@ const navItems: Array<{
 }> = [
   {
     description: "Check-in and care context",
-    href: appBasePath,
+    href: `${appRouteBasePath}/`,
     icon: CalendarCheck,
     label: "Today",
     page: "today"
   },
   {
     description: "Goals, tasks, and session prep",
-    href: `${appBasePath}/care-plan`,
+    href: `${appRouteBasePath}/care-plan/`,
     icon: ClipboardList,
     label: "Plan",
     page: "care-plan"
   },
   {
     description: "Care team conversations",
-    href: `${appBasePath}/messages`,
+    href: `${appRouteBasePath}/messages/`,
     icon: MessageCircle,
     label: "Messages",
     page: "messages"
   },
   {
     description: "Account, privacy, and app version",
-    href: `${appBasePath}/profile`,
+    href: `${appRouteBasePath}/profile/`,
     icon: UserRound,
     label: "Profile",
     page: "profile"
@@ -156,6 +157,9 @@ type NativeUpdateAction =
       percent: number;
     }
   | {
+      type: "checking";
+    }
+  | {
       type: "downloaded";
       bundle: BundleInfo;
     }
@@ -193,6 +197,12 @@ function nativeUpdateReducer(
         error: null,
         percent: action.percent
       };
+    case "checking":
+      return {
+        ...state,
+        error: null,
+        percent: 0
+      };
     case "downloaded":
       return {
         bundle: action.bundle,
@@ -229,6 +239,16 @@ function bindListener(
   });
 }
 
+async function holdNativeUpdateForPrompt() {
+  const oneYearFromNow = new Date(
+    Date.now() + 365 * 24 * 60 * 60 * 1000
+  ).toISOString();
+
+  await CapacitorUpdater.setMultiDelay({
+    delayConditions: [{ kind: "date", value: oneYearFromNow }]
+  });
+}
+
 function bindNativeUpdateLifecycle(
   dispatch: Dispatch<NativeUpdateAction>
 ): () => void {
@@ -253,7 +273,7 @@ function bindNativeUpdateLifecycle(
 
   bindListener(
     CapacitorUpdater.addListener("downloadComplete", ({ bundle }) => {
-      void CapacitorUpdater.next({ id: bundle.id });
+      void holdNativeUpdateForPrompt();
       dispatch({ bundle, type: "downloaded" });
     }),
     handles,
@@ -288,6 +308,49 @@ function bindNativeUpdateLifecycle(
       void handle.remove();
     }
   };
+}
+
+function isDownloadableUpdate(latest: LatestVersion) {
+  return (
+    latest.kind !== "up_to_date" &&
+    latest.kind !== "blocked" &&
+    latest.version &&
+    (latest.url || latest.manifest)
+  );
+}
+
+async function checkAndDownloadNativeUpdate(
+  dispatch: Dispatch<NativeUpdateAction>
+) {
+  dispatch({ type: "checking" });
+
+  try {
+    const latest = await CapacitorUpdater.getLatest();
+
+    if (!isDownloadableUpdate(latest)) {
+      dispatch({ type: "dismiss" });
+      return;
+    }
+
+    const bundle = await CapacitorUpdater.download({
+      checksum: latest.checksum,
+      manifest: latest.manifest,
+      sessionKey: latest.sessionKey,
+      url: latest.url ?? "",
+      version: latest.version
+    });
+
+    await holdNativeUpdateForPrompt();
+    dispatch({ bundle, type: "downloaded" });
+  } catch (error) {
+    dispatch({
+      message:
+        error instanceof Error
+          ? error.message
+          : "The update check could not be completed.",
+      type: "failed"
+    });
+  }
 }
 
 function bindPushNotificationLifecycle(
@@ -349,10 +412,10 @@ function getRedirectTo() {
   }
 
   if (typeof window === "undefined") {
-    return appBasePath;
+    return appRouteBasePath;
   }
 
-  return `${window.location.origin}${appBasePath}`;
+  return `${window.location.origin}${appRouteBasePath}`;
 }
 
 function useAppVersions(): VersionState {
@@ -698,7 +761,7 @@ function WorkspaceShell({
 
       <nav
         aria-label="Primary"
-        className="fixed inset-x-0 bottom-0 z-40 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden"
+        className="fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-[calc(1rem+env(safe-area-inset-left))] right-[calc(1rem+env(safe-area-inset-right))] z-40 lg:hidden"
       >
         <div className="mx-auto grid max-w-md grid-cols-4 gap-1 rounded-lg border border-border bg-card/95 p-1.5 shadow-2xl backdrop-blur">
           {navItems.map((item) => {
@@ -1089,7 +1152,10 @@ export function AppAuthExperience({ page = "today" }: { page?: PageKey }) {
       return () => {};
     }
 
-    return bindNativeUpdateLifecycle(dispatchNativeUpdate);
+    const cleanup = bindNativeUpdateLifecycle(dispatchNativeUpdate);
+    void checkAndDownloadNativeUpdate(dispatchNativeUpdate);
+
+    return cleanup;
   }, []);
 
   useEffect(() => {
@@ -1135,6 +1201,9 @@ export function AppAuthExperience({ page = "today" }: { page?: PageKey }) {
     }
 
     await CapacitorUpdater.next({ id: nativeUpdate.bundle.id });
+    await CapacitorUpdater.setMultiDelay({
+      delayConditions: [{ kind: "kill" }]
+    });
     dispatchNativeUpdate({ type: "dismiss" });
   }
 
@@ -1143,6 +1212,7 @@ export function AppAuthExperience({ page = "today" }: { page?: PageKey }) {
       return;
     }
 
+    await CapacitorUpdater.cancelDelay();
     await CapacitorUpdater.set({ id: nativeUpdate.bundle.id });
   }
 

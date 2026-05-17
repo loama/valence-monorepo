@@ -13,7 +13,7 @@ const config: CapacitorConfig = {
   plugins: {
     CapacitorUpdater: {
       appId: "com.valencedev.platform",
-      autoUpdate: true,
+      autoUpdate: false,
       defaultChannel: "production",
       directUpdate: false,
       keepUrlPathAfterReload: true,
