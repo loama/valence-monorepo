@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export default function WebsiteHome() {
@@ -17,9 +16,11 @@ export default function WebsiteHome() {
             the default route.
           </p>
         </div>
-        <Button asChild className="w-fit">
-          <Link href="/app">Open app route</Link>
-        </Button>
+        <form action="/app" method="get">
+          <Button className="w-fit" type="submit">
+            Open app route
+          </Button>
+        </form>
       </section>
     </main>
   );
