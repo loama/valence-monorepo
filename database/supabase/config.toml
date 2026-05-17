@@ -1,5 +1,34 @@
 project_id = "valence"
 
+[remotes.production]
+project_id = "iqkwqjgvtzknyoldnrzj"
+
+[remotes.production.auth]
+site_url = "https://valencedev.com/admin"
+additional_redirect_urls = [
+  "https://valencedev.com/admin",
+  "https://valencedev.com/admin/login",
+  "https://valencedev.com/admin/auth/callback"
+]
+
+# Create the persistent Supabase branch named "development", then replace this
+# placeholder with the branch project ref shown by:
+# supabase branches list --project-ref iqkwqjgvtzknyoldnrzj
+#
+# [remotes.development]
+# project_id = "development-branch-project-ref"
+#
+# [remotes.development.auth]
+# site_url = "https://valencedev.com/admin"
+# additional_redirect_urls = [
+#   "http://localhost:3005/admin",
+#   "http://localhost:3005/admin/login",
+#   "http://localhost:3005/admin/auth/callback",
+#   "https://valencedev.com/admin",
+#   "https://valencedev.com/admin/login",
+#   "https://valencedev.com/admin/auth/callback"
+# ]
+
 [api]
 enabled = true
 port = 54321
