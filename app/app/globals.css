@@ -1,21 +1,28 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8f6f1;
-  --foreground: #17211f;
-  --card: #fffdfa;
-  --card-foreground: #17211f;
-  --primary: #28645f;
+  --background: #fbfaf7;
+  --foreground: #181b22;
+  --card: #ffffff;
+  --card-foreground: #181b22;
+  --primary: #6833f4;
   --primary-foreground: #ffffff;
-  --secondary: #ebe5dc;
-  --secondary-foreground: #17211f;
-  --muted: #ece7df;
-  --muted-foreground: #66716e;
-  --accent: #e5eeeb;
-  --accent-foreground: #17211f;
-  --border: #d8d0c4;
-  --ring: #28645f;
-  --radius: 0.5rem;
+  --secondary: #f2eefc;
+  --secondary-foreground: #271552;
+  --muted: #f0eee9;
+  --muted-foreground: #6e7078;
+  --accent: #efe7ff;
+  --accent-foreground: #36157c;
+  --border: #e2ded7;
+  --ring: #7a39ff;
+  --valence-purple: #6833f4;
+  --valence-purple-deep: #4f1bd7;
+  --valence-purple-soft: #efe7ff;
+  --valence-orange: #ff7b2c;
+  --valence-yellow: #f2d300;
+  --valence-ink: #181b22;
+  --valence-cream: #fbfaf7;
+  --radius: 1.25rem;
 }
 
 @theme inline {
@@ -51,7 +58,10 @@ html {
 body {
   min-height: 100dvh;
   margin: 0;
-  background: var(--background);
+  background:
+    radial-gradient(circle at 75% 4%, rgba(104, 51, 244, 0.08), transparent 30%),
+    radial-gradient(circle at 8% 78%, rgba(242, 211, 0, 0.08), transparent 24%),
+    var(--background);
   color: var(--foreground);
   font-family: var(--font-valence-sans), system-ui, sans-serif;
   font-feature-settings:
@@ -68,6 +78,7 @@ h1,
 h2,
 h3 {
   font-family: var(--font-valence-sans), system-ui, sans-serif;
+  letter-spacing: 0;
   text-wrap: balance;
 }
 
@@ -83,6 +94,129 @@ button:not(:disabled),
 ::selection {
   background: var(--primary);
   color: var(--primary-foreground);
+}
+
+.valence-logo {
+  align-items: center;
+  color: var(--valence-ink);
+  display: inline-flex;
+  font-weight: 1000;
+  letter-spacing: 0;
+  line-height: 0.9;
+}
+
+.valence-spark {
+  background: linear-gradient(135deg, #8d5cff, #4f1bd7);
+  clip-path: polygon(
+    50% 0%,
+    61% 33%,
+    100% 50%,
+    61% 67%,
+    50% 100%,
+    39% 67%,
+    0% 50%,
+    39% 33%
+  );
+  display: inline-block;
+  filter: drop-shadow(0 8px 14px rgba(104, 51, 244, 0.22));
+}
+
+.valence-panel {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.76)),
+    radial-gradient(circle at 100% 0%, rgba(104, 51, 244, 0.08), transparent 42%);
+  border: 1px solid rgba(24, 27, 34, 0.1);
+  box-shadow:
+    0 26px 70px rgba(24, 27, 34, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.valence-purple-surface {
+  background:
+    radial-gradient(circle at 82% 12%, rgba(255, 255, 255, 0.36), transparent 22%),
+    linear-gradient(135deg, #7d36ff 0%, #5c22e6 100%);
+  box-shadow: 0 24px 44px rgba(104, 51, 244, 0.28);
+}
+
+.valence-brand-button {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.28), transparent 30%),
+    linear-gradient(135deg, #7535ff 0%, #5e20ea 100%);
+  border: 0;
+  box-shadow: 0 18px 34px rgba(104, 51, 244, 0.28);
+}
+
+.valence-brand-button:hover {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.32), transparent 30%),
+    linear-gradient(135deg, #8148ff 0%, #6428f0 100%);
+}
+
+.valence-squiggle {
+  border: 2px solid rgba(104, 51, 244, 0.34);
+  border-color: rgba(104, 51, 244, 0.34) transparent transparent transparent;
+  border-radius: 52% 48% 44% 56%;
+  height: 8rem;
+  pointer-events: none;
+  position: absolute;
+  width: 9rem;
+}
+
+.valence-mascot {
+  border-radius: 48% 52% 28% 72% / 42% 38% 62% 58%;
+  display: block;
+  position: relative;
+}
+
+.valence-mascot::before,
+.valence-mascot::after {
+  background: #181b22;
+  border-radius: 999px;
+  content: "";
+  height: 0.28rem;
+  position: absolute;
+  top: 32%;
+  width: 0.28rem;
+}
+
+.valence-mascot::before {
+  left: 34%;
+}
+
+.valence-mascot::after {
+  right: 34%;
+}
+
+.valence-mascot-face {
+  background: #181b22;
+  border-radius: 999px;
+  bottom: 34%;
+  display: block;
+  height: 0.16rem;
+  left: 56%;
+  position: absolute;
+  transform: rotate(-3deg);
+  width: 1.9rem;
+}
+
+.valence-mascot-purple {
+  background: linear-gradient(135deg, #8c55ff, #5b1de4);
+  box-shadow: 0 18px 24px rgba(104, 51, 244, 0.24);
+}
+
+.valence-mascot-yellow {
+  background: linear-gradient(135deg, #f7df24, #efc700);
+}
+
+.valence-mascot-orange {
+  background: linear-gradient(135deg, #ff9140, #ff7427);
+}
+
+.valence-spinner {
+  animation: valence-spin 950ms linear infinite;
+  border: 0.35rem solid rgba(104, 51, 244, 0.18);
+  border-right-color: var(--valence-purple);
+  border-radius: 999px;
 }
 
 .valence-safe-screen {
@@ -104,6 +238,10 @@ button:not(:disabled),
   animation: valence-scene-enter 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+.valence-card-enter {
+  animation: valence-card-enter 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @keyframes valence-scene-enter {
   from {
     opacity: 0;
@@ -116,8 +254,28 @@ button:not(:disabled),
   }
 }
 
+@keyframes valence-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes valence-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .valence-auth-scene {
+  .valence-auth-scene,
+  .valence-card-enter,
+  .valence-spinner {
     animation: none;
   }
 }

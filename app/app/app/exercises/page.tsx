@@ -7,6 +7,6 @@ export const metadata: Metadata = {
   description: "Guided care exercises for Valence members"
 };
 
-export default function CarePlanPage() {
+export default function ExercisesPage() {
   return <AppAuthExperience page="exercises" />;
 }

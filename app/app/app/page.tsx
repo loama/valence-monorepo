@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function AppHome() {
-  return <AppAuthExperience page="today" />;
+  return <AppAuthExperience page="home" />;
 }

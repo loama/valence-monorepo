@@ -24,33 +24,35 @@ import {
 import type { Provider, User } from "@supabase/supabase-js";
 import {
   Activity,
+  Apple,
   Bell,
-  CalendarCheck,
-  CloudDownload,
+  CalendarDays,
+  Check,
+  ChevronRight,
   ClipboardList,
-  FileText,
-  HeartPulse,
-  LockKeyhole,
+  CloudDownload,
+  CreditCard,
+  Dumbbell,
+  Heart,
+  Home,
   LogOut,
   Mail,
   MessageCircle,
-  PanelLeftClose,
+  Mic,
+  MoreHorizontal,
+  PenLine,
+  Phone,
   Send,
   ShieldCheck,
   Sparkles,
+  Target,
   UserRound,
+  Video,
   type LucideIcon
 } from "lucide-react";
 import packageJson from "@/package.json";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from "@/components/ui/card";
 import {
   Drawer,
   DrawerClose,
@@ -70,117 +72,12 @@ const nativeRedirectUrl =
   process.env.NEXT_PUBLIC_APP_NATIVE_REDIRECT_URL ??
   "valence://auth/callback";
 
-export type PageKey = "today" | "care-plan" | "messages" | "profile";
+export type PageKey = "home" | "exercises" | "sessions" | "messages" | "profile";
 
 type VersionState = {
   capgoVersion: string;
   installedVersion: string;
 };
-
-const installedVersion = packageJson.version;
-
-const navItems: Array<{
-  description: string;
-  href: string;
-  icon: LucideIcon;
-  label: string;
-  page: PageKey;
-}> = [
-  {
-    description: "Check-in and care context",
-    href: `${appRouteBasePath}/`,
-    icon: CalendarCheck,
-    label: "Today",
-    page: "today"
-  },
-  {
-    description: "Goals, tasks, and session prep",
-    href: `${appRouteBasePath}/care-plan/`,
-    icon: ClipboardList,
-    label: "Plan",
-    page: "care-plan"
-  },
-  {
-    description: "Care team conversations",
-    href: `${appRouteBasePath}/messages/`,
-    icon: MessageCircle,
-    label: "Messages",
-    page: "messages"
-  },
-  {
-    description: "Account, privacy, and app version",
-    href: `${appRouteBasePath}/profile/`,
-    icon: UserRound,
-    label: "Profile",
-    page: "profile"
-  }
-];
-
-function getPageHref(page: PageKey) {
-  return navItems.find((item) => item.page === page)?.href ?? `${appRouteBasePath}/`;
-}
-
-function getPageFromPathname(pathname: string): PageKey {
-  const normalizedPathname = pathname.replace(/\/+$/, "");
-
-  if (normalizedPathname.endsWith("/care-plan")) {
-    return "care-plan";
-  }
-
-  if (normalizedPathname.endsWith("/messages")) {
-    return "messages";
-  }
-
-  if (normalizedPathname.endsWith("/profile")) {
-    return "profile";
-  }
-
-  return "today";
-}
-
-function getClientPageFromLocation() {
-  if (typeof window === "undefined") {
-    return "today";
-  }
-
-  return getPageFromPathname(window.location.pathname);
-}
-
-function subscribeToPageChanges(onStoreChange: () => void) {
-  window.addEventListener("popstate", onStoreChange);
-  window.addEventListener("valence:navigation", onStoreChange);
-
-  return () => {
-    window.removeEventListener("popstate", onStoreChange);
-    window.removeEventListener("valence:navigation", onStoreChange);
-  };
-}
-
-function useActivePage(fallbackPage: PageKey) {
-  return useSyncExternalStore(
-    subscribeToPageChanges,
-    getClientPageFromLocation,
-    () => fallbackPage
-  );
-}
-
-const checkInItems = [
-  {
-    title: "Mood reflection",
-    description: "A brief note and signal check before the day gets loud.",
-    icon: HeartPulse
-  },
-  {
-    title: "Care plan",
-    description: "Three active goals are ready for your next session.",
-    icon: ClipboardList
-  },
-  {
-    title: "Privacy review",
-    description: "Your sharing settings are private by default.",
-    icon: LockKeyhole
-  }
-];
 
 type AuthState = {
   isLoading: boolean;
@@ -228,6 +125,52 @@ type NativeUpdateAction =
   | {
       type: "dismiss";
     };
+
+const installedVersion = packageJson.version;
+
+const navItems: Array<{
+  description: string;
+  href: string;
+  icon: LucideIcon;
+  label: string;
+  page: PageKey;
+}> = [
+  {
+    description: "Mood check-in",
+    href: `${appRouteBasePath}/`,
+    icon: Home,
+    label: "Home",
+    page: "home"
+  },
+  {
+    description: "Guided exercises",
+    href: `${appRouteBasePath}/exercises/`,
+    icon: Dumbbell,
+    label: "Exercises",
+    page: "exercises"
+  },
+  {
+    description: "Appointments",
+    href: `${appRouteBasePath}/sessions/`,
+    icon: CalendarDays,
+    label: "Sessions",
+    page: "sessions"
+  },
+  {
+    description: "Care team chat",
+    href: `${appRouteBasePath}/messages/`,
+    icon: MessageCircle,
+    label: "Messages",
+    page: "messages"
+  },
+  {
+    description: "Progress and settings",
+    href: `${appRouteBasePath}/profile/`,
+    icon: UserRound,
+    label: "Profile",
+    page: "profile"
+  }
+];
 
 function authReducer(_state: AuthState, action: AuthAction): AuthState {
   switch (action.type) {
@@ -280,6 +223,63 @@ function nativeUpdateReducer(
         percent: null
       };
   }
+}
+
+function getPageHref(page: PageKey) {
+  return (
+    navItems.find((item) => item.page === page)?.href ?? `${appRouteBasePath}/`
+  );
+}
+
+function getPageFromPathname(pathname: string): PageKey {
+  const normalizedPathname = pathname.replace(/\/+$/, "");
+
+  if (
+    normalizedPathname.endsWith("/exercises") ||
+    normalizedPathname.endsWith("/care-plan")
+  ) {
+    return "exercises";
+  }
+
+  if (normalizedPathname.endsWith("/sessions")) {
+    return "sessions";
+  }
+
+  if (normalizedPathname.endsWith("/messages")) {
+    return "messages";
+  }
+
+  if (normalizedPathname.endsWith("/profile")) {
+    return "profile";
+  }
+
+  return "home";
+}
+
+function getClientPageFromLocation() {
+  if (typeof window === "undefined") {
+    return "home";
+  }
+
+  return getPageFromPathname(window.location.pathname);
+}
+
+function subscribeToPageChanges(onStoreChange: () => void) {
+  window.addEventListener("popstate", onStoreChange);
+  window.addEventListener("valence:navigation", onStoreChange);
+
+  return () => {
+    window.removeEventListener("popstate", onStoreChange);
+    window.removeEventListener("valence:navigation", onStoreChange);
+  };
+}
+
+function useActivePage(fallbackPage: PageKey) {
+  return useSyncExternalStore(
+    subscribeToPageChanges,
+    getClientPageFromLocation,
+    () => fallbackPage
+  );
 }
 
 function bindListener(
@@ -502,8 +502,7 @@ function useAppVersions(): VersionState {
         }
 
         setVersions({
-          capgoVersion:
-            bundle.bundle.version ?? bundle.bundle.id ?? "builtin",
+          capgoVersion: bundle.bundle.version ?? bundle.bundle.id ?? "builtin",
           installedVersion: bundle.native || installedVersion
         });
       })
@@ -524,6 +523,90 @@ function useAppVersions(): VersionState {
   return versions;
 }
 
+function BrandLogo({ className, size = "md" }: { className?: string; size?: "sm" | "md" | "lg" }) {
+  return (
+    <span
+      className={cn(
+        "valence-logo",
+        size === "lg" ? "text-7xl" : size === "md" ? "text-4xl" : "text-3xl",
+        className
+      )}
+    >
+      valence
+      <span
+        className={cn(
+          "valence-spark ml-1.5",
+          size === "lg" ? "size-10" : size === "md" ? "size-6" : "size-4"
+        )}
+      />
+    </span>
+  );
+}
+
+function SparkMark({ className }: { className?: string }) {
+  return <span className={cn("valence-spark", className)} />;
+}
+
+function Mascot({
+  className,
+  tone = "yellow"
+}: {
+  className?: string;
+  tone?: "yellow" | "purple" | "orange";
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "valence-mascot",
+        tone === "yellow" && "valence-mascot-yellow",
+        tone === "purple" && "valence-mascot-purple",
+        tone === "orange" && "valence-mascot-orange",
+        className
+      )}
+    >
+      <span className="valence-mascot-face" />
+    </span>
+  );
+}
+
+function PageChrome({
+  eyebrow,
+  title,
+  description,
+  children,
+  mascot
+}: {
+  eyebrow?: string;
+  title: string;
+  description: string;
+  children: ReactNode;
+  mascot?: ReactNode;
+}) {
+  return (
+    <section className="relative mx-auto flex max-w-5xl flex-col gap-5 overflow-hidden px-5 pb-10 pt-6 sm:px-6 lg:px-8">
+      <div className="pointer-events-none absolute right-[-3rem] top-8 hidden size-40 rounded-full bg-[var(--valence-yellow)]/75 sm:block" />
+      <div className="pointer-events-none absolute right-8 top-16 hidden sm:block">
+        {mascot}
+      </div>
+      <div className="relative">
+        {eyebrow ? (
+          <span className="inline-flex rounded-full bg-[var(--valence-purple-soft)] px-4 py-1.5 text-sm font-extrabold text-primary">
+            {eyebrow}
+          </span>
+        ) : null}
+        <h1 className="mt-4 max-w-2xl text-5xl font-semibold leading-[0.95] text-foreground sm:text-6xl">
+          {title}
+        </h1>
+        <p className="mt-3 max-w-xl text-xl leading-8 text-muted-foreground">
+          {description}
+        </p>
+      </div>
+      <div className="relative grid gap-5">{children}</div>
+    </section>
+  );
+}
+
 function VersionBadge({
   className,
   versions
@@ -534,23 +617,29 @@ function VersionBadge({
   return (
     <div
       className={cn(
-        "rounded-md border border-border bg-card/85 px-3 py-2 text-xs leading-5 text-muted-foreground shadow-sm backdrop-blur",
+        "rounded-2xl border border-border bg-white/82 px-3 py-2 text-xs leading-5 text-muted-foreground shadow-sm backdrop-blur",
         className
       )}
     >
-      <span className="font-medium text-foreground">Installed</span>{" "}
+      <span className="font-extrabold text-foreground">Installed</span>{" "}
       {versions.installedVersion}
       <span className="mx-2 text-border">/</span>
-      <span className="font-medium text-foreground">Capgo</span>{" "}
+      <span className="font-extrabold text-foreground">Capgo</span>{" "}
       {versions.capgoVersion}
     </div>
   );
 }
 
-function ProviderMark({ label }: { label: string }) {
+function ProviderMark({
+  icon: Icon,
+  label
+}: {
+  icon?: LucideIcon;
+  label: string;
+}) {
   return (
-    <span className="flex size-5 items-center justify-center rounded-sm border border-border bg-background text-xs font-semibold">
-      {label}
+    <span className="flex size-7 items-center justify-center rounded-xl border border-border bg-white text-sm font-black">
+      {Icon ? <Icon className="size-4" /> : label}
     </span>
   );
 }
@@ -573,11 +662,13 @@ function NativeUpdateDrawer({
       <DrawerContent className="mx-auto max-w-xl px-[env(safe-area-inset-left)]">
         <DrawerHeader className="text-left">
           <div className="flex items-start gap-3">
-            <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-md bg-accent text-primary">
+            <span className="valence-purple-surface mt-0.5 flex size-12 shrink-0 items-center justify-center rounded-2xl text-white">
               <CloudDownload className="size-5" />
             </span>
             <div className="min-w-0 flex-1">
-              <DrawerTitle>Update ready</DrawerTitle>
+              <DrawerTitle className="text-2xl font-black">
+                Update ready
+              </DrawerTitle>
               <DrawerDescription className="mt-1 leading-6">
                 A new Valence app update is downloaded and ready to apply.
               </DrawerDescription>
@@ -590,11 +681,16 @@ function NativeUpdateDrawer({
           </div>
         </DrawerHeader>
         <DrawerFooter className="grid gap-2 sm:grid-cols-[1fr_auto]">
-          <Button onClick={onApplyNow} type="button">
+          <Button
+            className="valence-brand-button h-12 rounded-2xl text-base font-extrabold"
+            onClick={onApplyNow}
+            type="button"
+          >
             Apply now
           </Button>
           <DrawerClose asChild>
             <Button
+              className="h-12 rounded-2xl text-base font-extrabold"
               onClick={onApplyNextLaunch}
               type="button"
               variant="outline"
@@ -605,6 +701,26 @@ function NativeUpdateDrawer({
         </DrawerFooter>
       </DrawerContent>
     </Drawer>
+  );
+}
+
+function SplashScreen({ versions }: { versions: VersionState }) {
+  return (
+    <main className="valence-safe-screen relative grid min-h-dvh place-items-center overflow-hidden bg-background px-6 text-foreground">
+      <div className="valence-squiggle right-[-2rem] top-[10%] rotate-[38deg]" />
+      <div className="valence-squiggle bottom-[-2rem] left-[-2rem] rotate-[210deg]" />
+      <SparkMark className="absolute bottom-[27%] left-1/2 size-6 -translate-x-1/2" />
+      <SparkMark className="absolute right-[18%] top-[44%] size-9" />
+      <section className="flex flex-col items-center text-center">
+        <BrandLogo size="lg" />
+        <p className="mt-5 text-2xl font-semibold text-foreground">
+          Mental health with clarity.
+        </p>
+        <Mascot className="mt-36 size-20" tone="purple" />
+        <span className="valence-spinner mt-9 size-10" />
+        <VersionBadge className="mt-8" versions={versions} />
+      </section>
+    </main>
   );
 }
 
@@ -673,71 +789,112 @@ function LoginScreen({ versions }: { versions: VersionState }) {
   }
 
   return (
-    <main className="valence-auth-scene valence-safe-screen bg-background px-4 py-8 text-foreground sm:px-6 lg:px-8">
-      <section className="mx-auto flex min-h-[calc(100dvh-4rem)] max-w-md flex-col justify-center gap-4">
-        <Card>
-          <CardHeader>
-            <div className="mb-2 flex size-10 items-center justify-center rounded-md bg-accent text-primary">
-              <Sparkles className="size-5" />
-            </div>
-            <CardTitle>Sign in to Valence</CardTitle>
-            <CardDescription>
-              Use email, Google, or Apple to open your care workspace.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-5">
-            {status ? (
-              <div className="rounded-md border border-border bg-accent p-4 text-sm leading-6">
-                {status}
-              </div>
-            ) : null}
+    <main className="valence-auth-scene relative min-h-dvh overflow-hidden bg-background pb-[calc(env(safe-area-inset-bottom)+1.75rem)] pl-[calc(env(safe-area-inset-left)+1.25rem)] pr-[calc(env(safe-area-inset-right)+1.25rem)] pt-[calc(env(safe-area-inset-top)+1.75rem)] text-foreground sm:pl-[calc(env(safe-area-inset-left)+1.5rem)] sm:pr-[calc(env(safe-area-inset-right)+1.5rem)]">
+      <div className="valence-squiggle right-[-4rem] top-12 rotate-[35deg]" />
+      <SparkMark className="absolute right-[17%] top-[24%] size-12" />
+      <section className="mx-auto flex max-w-md flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <BrandLogo />
+          <button
+            aria-label="Valence assistant"
+            className="flex size-14 items-center justify-center rounded-2xl border border-border bg-white/84 shadow-sm backdrop-blur"
+            type="button"
+          >
+            <SparkMark className="size-6" />
+          </button>
+        </div>
 
-            {error ? (
-              <div className="rounded-md border border-border bg-card p-4 text-sm leading-6 text-muted-foreground">
-                {error}
-              </div>
-            ) : null}
+        <div className="pt-14">
+          <span className="inline-flex rounded-full bg-[var(--valence-purple-soft)] px-4 py-1.5 text-sm font-extrabold text-primary">
+            your mental wellness companion
+          </span>
+          <h1 className="mt-7 text-6xl font-semibold leading-[0.94]">
+            Welcome back
+          </h1>
+          <p className="mt-5 max-w-sm text-xl leading-8 text-muted-foreground">
+            Continue your journey toward balance, clarity, and well-being.
+          </p>
+        </div>
 
-            <form className="flex flex-col gap-4" onSubmit={requestEmailAccess}>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="member-email">Email</Label>
-                <Input
-                  autoComplete="email"
-                  id="member-email"
-                  name="email"
-                  onChange={(event) => setEmail(event.currentTarget.value)}
-                  placeholder="you@example.com"
-                  required
-                  type="email"
-                  value={email}
-                />
-              </div>
-              <Button disabled={isSubmitting} type="submit">
-                <Mail data-icon="inline-start" />
-                {isSubmitting ? "Sending" : "Send magic link or OTP"}
-              </Button>
-            </form>
+        <form className="grid gap-4" onSubmit={requestEmailAccess}>
+          <Label className="sr-only" htmlFor="member-email">
+            Email
+          </Label>
+          <div className="relative">
+            <Mail className="absolute left-5 top-1/2 size-5 -translate-y-1/2 text-primary" />
+            <Input
+              autoComplete="email"
+              className="h-16 rounded-[1.35rem] border-border bg-white/86 pl-14 text-lg shadow-sm"
+              id="member-email"
+              name="email"
+              onChange={(event) => setEmail(event.currentTarget.value)}
+              placeholder="Enter your email"
+              required
+              type="email"
+              value={email}
+            />
+          </div>
+          <Button
+            className="valence-brand-button h-16 rounded-[1.35rem] text-xl font-extrabold"
+            disabled={isSubmitting}
+            type="submit"
+          >
+            {isSubmitting ? "Sending" : "Send code"}
+          </Button>
+        </form>
 
-            <div className="grid gap-3">
-              <Button
-                onClick={() => void continueWithProvider("google")}
-                type="button"
-                variant="outline"
-              >
-                <ProviderMark label="G" />
-                Continue with Google
-              </Button>
-              <Button
-                onClick={() => void continueWithProvider("apple")}
-                type="button"
-                variant="outline"
-              >
-                <ProviderMark label="A" />
-                Continue with Apple
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid gap-4">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-5 text-muted-foreground">
+            <span className="h-px bg-border" />
+            <span className="font-semibold">or</span>
+            <span className="h-px bg-border" />
+          </div>
+  <Button
+            className="h-14 rounded-[1.25rem] border-border bg-white/86 text-lg font-extrabold"
+            onClick={() => void continueWithProvider("google")}
+            type="button"
+            variant="outline"
+          >
+            <ProviderMark label="G" />
+            Continue with Google
+          </Button>
+          <Button
+            className="h-14 rounded-[1.25rem] border-border bg-white/86 text-lg font-extrabold"
+            onClick={() => void continueWithProvider("apple")}
+            type="button"
+            variant="outline"
+          >
+            <ProviderMark icon={Apple} label="A" />
+            Continue with Apple
+          </Button>
+        </div>
+
+        {status ? (
+          <div className="valence-panel rounded-[1.35rem] p-4 text-sm font-semibold leading-6">
+            {status}
+          </div>
+        ) : null}
+
+        {error ? (
+          <div className="rounded-[1.35rem] border border-border bg-white/86 p-4 text-sm font-semibold leading-6 text-muted-foreground">
+            {error}
+          </div>
+        ) : null}
+
+        <div className="valence-panel relative mt-3 overflow-hidden rounded-[1.75rem] p-5">
+          <div className="relative z-10 max-w-[14rem]">
+            <p className="text-sm font-extrabold text-foreground">
+              Compassionate support
+            </p>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              A private space for sessions, reflection, and steady progress.
+            </p>
+          </div>
+          <Mascot
+            className="absolute bottom-[-1.25rem] right-[-0.75rem] size-24"
+            tone="yellow"
+          />
+        </div>
         <VersionBadge className="self-center" versions={versions} />
       </section>
     </main>
@@ -768,14 +925,11 @@ function WorkspaceShell({
   }
 
   const aside = (
-    <aside className="flex h-full w-72 flex-col border-r border-border bg-card">
-      <div className="flex h-16 items-center justify-between border-b border-border px-4">
-        <div>
-          <p className="text-sm font-semibold">Valence</p>
-          <p className="text-xs text-muted-foreground">Member workspace</p>
-        </div>
+    <aside className="flex h-full w-72 flex-col border-r border-border bg-white/84 backdrop-blur">
+      <div className="flex h-20 items-center border-b border-border px-5">
+        <BrandLogo size="sm" />
       </div>
-      <nav className="flex flex-1 flex-col gap-1 p-3">
+      <nav className="flex flex-1 flex-col gap-2 p-3">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = item.page === activePage;
@@ -783,26 +937,26 @@ function WorkspaceShell({
           return (
             <a
               className={cn(
-                "flex h-10 items-center gap-3 rounded-md px-3 text-left text-sm font-medium transition-colors",
+                "flex h-12 items-center gap-3 rounded-2xl px-4 text-left text-sm font-extrabold transition-all",
                 isActive
-                  ? "bg-accent text-foreground"
+                  ? "bg-[var(--valence-purple-soft)] text-primary"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
               href={item.href}
               key={item.label}
               onClick={(event) => handleNavigate(event, item.page)}
             >
-              <Icon className="size-4" />
+              <Icon className="size-5" />
               {item.label}
             </a>
           );
         })}
       </nav>
       <div className="border-t border-border p-4">
-        <VersionBadge className="mb-3 bg-background" versions={versions} />
-        <p className="truncate text-sm font-medium">{email}</p>
+        <VersionBadge className="mb-3 bg-white" versions={versions} />
+        <p className="truncate text-sm font-extrabold">{email}</p>
         <Button
-          className="mt-3 w-full justify-start"
+          className="mt-3 w-full justify-start rounded-2xl"
           onClick={onSignOut}
           type="button"
           variant="outline"
@@ -815,29 +969,36 @@ function WorkspaceShell({
   );
 
   return (
-    <div className="min-h-dvh bg-background pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] text-foreground lg:grid lg:grid-cols-[18rem_1fr]">
+    <div className="min-h-dvh overflow-x-hidden bg-background pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] text-foreground lg:grid lg:grid-cols-[18rem_1fr]">
       <div className="hidden lg:block">{aside}</div>
 
       <main className="min-w-0">
-        <header className="sticky top-0 z-30 flex min-h-[calc(4rem+env(safe-area-inset-top))] items-end gap-3 border-b border-border bg-background/95 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] backdrop-blur sm:px-6 lg:min-h-16 lg:px-8 lg:pt-0">
-          <PanelLeftClose className="hidden size-4 text-muted-foreground lg:block" />
-          <div>
-            <p className="text-sm font-medium">{activeNav?.label ?? "Today"}</p>
-            <p className="text-xs text-muted-foreground">
-              {activeNav?.description ?? "Check-in and care context"}
+        <header className="sticky top-0 z-30 flex min-h-[calc(5.5rem+env(safe-area-inset-top))] items-end justify-between bg-background/88 px-5 pb-4 pt-[calc(env(safe-area-inset-top)+0.9rem)] backdrop-blur-xl sm:px-6 lg:min-h-20 lg:px-8 lg:pt-0">
+          <BrandLogo className="lg:hidden" size="sm" />
+          <div className="hidden lg:block">
+            <p className="text-sm font-extrabold">{activeNav?.label}</p>
+            <p className="text-xs font-semibold text-muted-foreground">
+              {activeNav?.description}
             </p>
           </div>
+          <button
+            aria-label="Open Valence tools"
+            className="flex size-14 items-center justify-center rounded-2xl border border-border bg-white/84 shadow-sm backdrop-blur"
+            type="button"
+          >
+            <SparkMark className="size-6" />
+          </button>
         </header>
-        <div className="pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
+        <div className="pb-[calc(7.5rem+env(safe-area-inset-bottom))] lg:pb-0">
           {children}
         </div>
       </main>
 
       <nav
         aria-label="Primary"
-        className="fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-[calc(1rem+env(safe-area-inset-left))] right-[calc(1rem+env(safe-area-inset-right))] z-40 lg:hidden"
+        className="fixed bottom-[calc(0.7rem+env(safe-area-inset-bottom))] left-[calc(0.75rem+env(safe-area-inset-left))] right-[calc(0.75rem+env(safe-area-inset-right))] z-40 lg:hidden"
       >
-        <div className="mx-auto grid max-w-md grid-cols-4 gap-1 rounded-lg border border-border bg-card/95 p-1.5 shadow-2xl backdrop-blur">
+        <div className="mx-auto grid max-w-md grid-cols-5 gap-0.5 rounded-[2rem] border border-border bg-white/90 p-1.5 shadow-[0_18px_55px_rgba(24,27,34,0.16)] backdrop-blur-xl">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = item.page === activePage;
@@ -846,16 +1007,16 @@ function WorkspaceShell({
               <a
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "flex min-h-14 flex-col items-center justify-center gap-1 rounded-md px-1 text-[0.68rem] font-medium leading-none transition-all duration-200 active:scale-[0.98]",
+                  "flex min-h-16 flex-col items-center justify-center gap-1 rounded-[1.55rem] px-1 text-[0.62rem] font-extrabold leading-none transition-all duration-200 active:scale-[0.97]",
                   isActive
-                    ? "bg-accent text-foreground shadow-sm"
+                    ? "bg-[var(--valence-purple-soft)] text-primary"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
                 href={item.href}
                 key={item.page}
                 onClick={(event) => handleNavigate(event, item.page)}
               >
-                <Icon className="size-4" />
+                <Icon className="size-5" strokeWidth={2.4} />
                 <span>{item.label}</span>
               </a>
             );
@@ -866,15 +1027,28 @@ function WorkspaceShell({
   );
 }
 
-function MemberDashboard({
+function HomePage({
   pushRegistration,
-  user,
   onEnablePushNotifications
 }: {
   pushRegistration: PushRegistrationState;
-  user: User;
   onEnablePushNotifications: () => void;
 }) {
+  const moods = [
+    { label: "Great", tone: "bg-[#cbb4ff]" },
+    { label: "Good", tone: "bg-primary text-white", active: true },
+    { label: "Okay", tone: "bg-[#ffd6c0]" },
+    { label: "Low", tone: "bg-[var(--valence-orange)]" },
+    { label: "Struggling", tone: "bg-[#ff8a34]" }
+  ];
+  const topics = [
+    ["Sleep", Heart],
+    ["Work", ClipboardList],
+    ["Relationships", Heart],
+    ["Health", Activity],
+    ["Finances", CreditCard],
+    ["Other", MoreHorizontal]
+  ] as const;
   const pushDescription =
     pushRegistration.status === "registered"
       ? "This device is registered for Valence notifications."
@@ -885,195 +1059,512 @@ function MemberDashboard({
           : "Enable care reminders and important account notifications.";
 
   return (
-    <section className="mx-auto flex max-w-6xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
-      <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Your care rhythm, centered</CardTitle>
-            <CardDescription>
-              A focused starting point for reflection and care planning.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-3">
-            {checkInItems.map((item) => {
-              const Icon = item.icon;
-
-              return (
-                <div
-                  className="rounded-md border border-border bg-background p-4"
-                  key={item.title}
-                >
-                  <span className="mb-4 flex size-10 items-center justify-center rounded-md bg-accent text-primary">
-                    <Icon className="size-5" />
-                  </span>
-                  <p className="font-medium">{item.title}</p>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    {item.description}
-                  </p>
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Session context</CardTitle>
-            <CardDescription>
-              Signed in as {user.email ?? "your Valence account"}.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4 text-sm leading-6 text-muted-foreground">
-            <div className="rounded-md bg-muted p-4">
-              Next session prep is ready for the first authenticated flow.
-            </div>
-            <div className="flex items-center gap-3 rounded-md border border-border p-4 text-foreground">
-              <Activity className="size-4 text-primary" />
-              Check-in completion baseline: 47.2%
-            </div>
-          </CardContent>
-        </Card>
+    <PageChrome
+      description="Take a moment to check in with yourself. Your feelings matter."
+      eyebrow="mood check-in"
+      mascot={<Mascot className="size-28" tone="yellow" />}
+      title="How are you feeling right now?"
+    >
+      <div className="grid grid-cols-5 gap-3 overflow-x-auto pb-1">
+        {moods.map((mood) => (
+          <button
+            className={cn(
+              "flex min-w-24 flex-col items-center gap-2 rounded-[1.35rem] border bg-white p-3 text-sm font-extrabold shadow-sm transition active:scale-[0.97]",
+              mood.active
+                ? "border-primary shadow-[0_0_0_2px_rgba(104,51,244,0.2)]"
+                : "border-border"
+            )}
+            key={mood.label}
+            type="button"
+          >
+            <span
+              className={cn(
+                "grid size-12 place-items-center rounded-full text-xl",
+                mood.tone
+              )}
+            >
+              :)
+            </span>
+            {mood.label}
+          </button>
+        ))}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Notifications</CardTitle>
-          <CardDescription>{pushDescription}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <span className="flex size-10 items-center justify-center rounded-md bg-accent text-primary">
-              <Bell className="size-5" />
-            </span>
-            <span>
-              {pushRegistration.status === "registered"
-                ? "Device token is ready."
-                : "Permission is requested only when you opt in."}
+      <div className="valence-panel rounded-[1.6rem] p-5">
+        <h2 className="text-2xl font-semibold">How stressed do you feel?</h2>
+        <p className="mt-1 text-sm font-semibold text-muted-foreground">
+          On a scale of 0 to 10
+        </p>
+        <div className="mt-8">
+          <div className="relative h-3 rounded-full bg-muted">
+            <div className="h-full w-[60%] rounded-full bg-primary" />
+            <span className="absolute left-[60%] top-1/2 grid size-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-primary bg-white text-sm font-black text-primary shadow-md">
+              6
             </span>
           </div>
-          <Button
-            disabled={pushRegistration.status === "registered"}
-            onClick={onEnablePushNotifications}
-            type="button"
-            variant={
-              pushRegistration.status === "registered" ? "outline" : "default"
-            }
-          >
-            {pushRegistration.status === "registered"
-              ? "Enabled"
-              : "Enable notifications"}
-          </Button>
-        </CardContent>
-      </Card>
-    </section>
+          <div className="mt-5 flex justify-between text-sm font-extrabold">
+            <span>0</span>
+            <span>10</span>
+          </div>
+          <div className="flex justify-between text-xs font-semibold text-muted-foreground">
+            <span>Not at all</span>
+            <span>Extremely</span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-3xl font-semibold">What is on your mind?</h2>
+        <p className="mt-1 font-semibold text-muted-foreground">
+          Select all that apply
+        </p>
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {topics.map(([label, Icon], index) => (
+            <button
+              className={cn(
+                "flex h-14 items-center justify-center gap-3 rounded-2xl border bg-white/86 text-sm font-extrabold shadow-sm",
+                index === 1 ? "border-primary text-foreground" : "border-border"
+              )}
+              key={label}
+              type="button"
+            >
+              <Icon className="size-5 text-primary" />
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-2xl font-semibold">Notes</h2>
+        <div className="mt-3 rounded-[1.35rem] border border-border bg-white/88 p-5 text-muted-foreground shadow-sm">
+          Add a few notes about how you are feeling&hellip;
+          <p className="mt-6 text-right text-sm font-extrabold">0/200</p>
+        </div>
+      </div>
+
+      <Button className="valence-brand-button h-16 rounded-[1.35rem] text-xl font-extrabold">
+        Save check-in
+      </Button>
+
+      <div className="valence-panel flex items-center justify-between gap-4 rounded-[1.5rem] p-5">
+        <div className="flex items-center gap-3">
+          <span className="grid size-12 place-items-center rounded-2xl bg-[var(--valence-purple-soft)] text-primary">
+            <Bell className="size-5" />
+          </span>
+          <div>
+            <p className="font-black">Notifications</p>
+            <p className="text-sm font-semibold leading-6 text-muted-foreground">
+              {pushDescription}
+            </p>
+          </div>
+        </div>
+        <Button
+          className="rounded-2xl"
+          disabled={pushRegistration.status === "registered"}
+          onClick={onEnablePushNotifications}
+          type="button"
+          variant={pushRegistration.status === "registered" ? "outline" : "default"}
+        >
+          {pushRegistration.status === "registered" ? "Enabled" : "Enable"}
+        </Button>
+      </div>
+    </PageChrome>
   );
 }
 
-function CarePlanPage() {
-  const goals = [
-    {
-      title: "Steady morning check-ins",
-      detail: "Capture the first mood signal before calendar pressure builds.",
-      meta: "5 minute rhythm"
-    },
-    {
-      title: "Session prep",
-      detail: "Keep notes, consent context, and care themes ready for review.",
-      meta: "Next session"
-    },
-    {
-      title: "Privacy defaults",
-      detail: "Share only the pieces your care team needs for the next step.",
-      meta: "Private by default"
-    }
+function ExercisesPage() {
+  return (
+    <PageChrome
+      description="A safe space to reflect, release, and grow."
+      eyebrow="guided care"
+      mascot={<SparkMark className="size-14" />}
+      title="Exercises"
+    >
+      <div className="valence-panel relative overflow-hidden rounded-[1.65rem] p-6">
+        <SparkMark className="mb-5 size-9" />
+        <p className="max-w-md text-2xl font-semibold leading-10">
+          Today I took time for myself. I went for a walk, stayed off my phone,
+          and just breathed.
+        </p>
+        <div className="mt-8 flex items-center justify-between">
+          <p className="font-semibold text-muted-foreground">
+            Today, 9:30 PM
+          </p>
+          <button
+            className="grid size-12 place-items-center rounded-2xl border border-border bg-white text-primary"
+            type="button"
+          >
+            <PenLine className="size-5" />
+          </button>
+        </div>
+        <Mascot
+          className="absolute bottom-[-1.5rem] right-6 size-24"
+          tone="yellow"
+        />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        {[
+          {
+            title: "Breathing reset",
+            detail: "A 4 minute exercise for racing thoughts.",
+            icon: Activity,
+            tone: "purple"
+          },
+          {
+            title: "Name what you need",
+            detail: "A brief prompt for identifying support.",
+            icon: Sparkles,
+            tone: "yellow"
+          },
+          {
+            title: "Grounding scan",
+            detail: "Move attention through senses and surroundings.",
+            icon: Target,
+            tone: "orange"
+          },
+          {
+            title: "Sleep wind-down",
+            detail: "A calmer transition from the day into rest.",
+            icon: Heart,
+            tone: "purple"
+          }
+        ].map((exercise) => {
+          const Icon = exercise.icon;
+
+          return (
+            <button
+              className="valence-panel flex items-center justify-between rounded-[1.35rem] p-5 text-left transition active:scale-[0.98]"
+              key={exercise.title}
+              type="button"
+            >
+              <span className="flex items-center gap-4">
+                <span
+                  className={cn(
+                    "grid size-13 place-items-center rounded-2xl text-white",
+                    exercise.tone === "purple" && "valence-purple-surface",
+                    exercise.tone === "yellow" && "bg-[var(--valence-yellow)] text-foreground",
+                    exercise.tone === "orange" && "bg-[var(--valence-orange)]"
+                  )}
+                >
+                  <Icon className="size-5" />
+                </span>
+                <span>
+                  <span className="block text-lg font-black">
+                    {exercise.title}
+                  </span>
+                  <span className="mt-1 block text-sm font-semibold leading-6 text-muted-foreground">
+                    {exercise.detail}
+                  </span>
+                </span>
+              </span>
+              <ChevronRight className="size-5" />
+            </button>
+          );
+        })}
+      </div>
+
+      <Button className="valence-brand-button h-16 rounded-[1.35rem] text-xl font-extrabold">
+        <PenLine className="size-5" />
+        New entry
+      </Button>
+    </PageChrome>
+  );
+}
+
+function SessionsPage() {
+  const weekdays = [
+    { id: "sun", label: "SUN" },
+    { id: "mon", label: "MON" },
+    { id: "tue", label: "TUE" },
+    { id: "wed", label: "WED" },
+    { id: "thu", label: "THU" },
+    { id: "fri", label: "FRI" },
+    { id: "sat", label: "SAT" }
   ];
+  const days = [
+    { day: 27, id: "prev-27" },
+    { day: 28, id: "prev-28" },
+    { day: 29, id: "prev-29" },
+    { day: 30, id: "prev-30" },
+    { day: 1, id: "may-1" },
+    { day: 2, id: "may-2" },
+    { day: 3, id: "may-3" },
+    { day: 4, id: "may-4" },
+    { day: 5, id: "may-5" },
+    { day: 6, id: "may-6" },
+    { day: 7, id: "may-7" },
+    { day: 8, id: "may-8" },
+    { day: 9, id: "may-9" },
+    { day: 10, id: "may-10" },
+    { day: 11, id: "may-11" },
+    { day: 12, id: "may-12" },
+    { day: 13, id: "may-13" },
+    { day: 14, id: "may-14" },
+    { day: 15, id: "may-15" },
+    { day: 16, id: "may-16" },
+    { day: 17, id: "may-17" },
+    { day: 18, id: "may-18" },
+    { day: 19, id: "may-19" },
+    { day: 20, id: "may-20" },
+    { day: 21, id: "may-21" },
+    { day: 22, id: "may-22" },
+    { day: 23, id: "may-23" },
+    { day: 24, id: "may-24" },
+    { day: 25, id: "may-25" },
+    { day: 26, id: "may-26" },
+    { day: 27, id: "may-27" },
+    { day: 28, id: "may-28" },
+    { day: 29, id: "may-29" },
+    { day: 30, id: "may-30" },
+    { day: 31, id: "may-31" }
+  ];
+  const dots = new Set([7, 9, 12, 19, 28, 30]);
 
   return (
-    <section className="mx-auto flex max-w-6xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Care plan</CardTitle>
-          <CardDescription>
-            A calm view of goals, tasks, and care context.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-3">
-          {goals.map((goal) => (
-            <div
-              className="flex min-h-44 flex-col justify-between rounded-md border border-border bg-background p-4"
-              key={goal.title}
-            >
-              <div>
-                <p className="text-sm font-semibold">{goal.title}</p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {goal.detail}
-                </p>
-              </div>
-              <p className="mt-5 text-xs font-medium text-primary">
-                {goal.meta}
-              </p>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+    <PageChrome
+      description="View and manage your upcoming sessions and appointments."
+      mascot={<Mascot className="size-32" tone="yellow" />}
+      title="Sessions"
+    >
+      <div className="grid grid-cols-2 rounded-[1.5rem] border border-border bg-white p-1.5 shadow-sm">
+        <button
+          className="valence-brand-button h-13 rounded-[1.1rem] text-lg font-extrabold text-white"
+          type="button"
+        >
+          Month
+        </button>
+        <button className="h-13 rounded-[1.1rem] text-lg font-extrabold" type="button">
+          Week
+        </button>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Session notes</CardTitle>
-          <CardDescription>
-            Draft structure for the clinical workflows coming next.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-md bg-muted p-4 text-sm leading-6">
-            <FileText className="mb-3 size-5 text-primary" />
-            Reflect on what felt regulated, what felt strained, and what
-            support would help this week.
+      <div className="valence-panel rounded-[1.65rem] p-5">
+        <div className="flex items-center justify-between">
+          <ChevronRight className="size-6 rotate-180" />
+          <h2 className="text-3xl font-semibold">May 2025</h2>
+          <ChevronRight className="size-6" />
+        </div>
+        <div className="mt-7 grid grid-cols-7 gap-y-5 text-center">
+          {weekdays.map((day) => (
+            <span
+              className="text-xs font-black text-muted-foreground"
+              key={day.id}
+            >
+              {day.label}
+            </span>
+          ))}
+          {days.map((date) => {
+            const isSelected = date.id === "may-14";
+            return (
+              <span
+                className="relative grid min-h-11 place-items-center text-xl font-bold"
+                key={date.id}
+              >
+                <span
+                  className={cn(
+                    "grid size-11 place-items-center rounded-full",
+                    isSelected && "bg-primary text-white shadow-lg shadow-primary/25"
+                  )}
+                >
+                  {date.day}
+                </span>
+                {dots.has(date.day) ? (
+                  <span className="absolute bottom-0 size-1.5 rounded-full bg-primary" />
+                ) : null}
+              </span>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="valence-panel rounded-[1.65rem] p-5">
+        <p className="text-lg font-black">Next appointment</p>
+        <div className="mt-4 flex items-center gap-4">
+          <span className="grid size-16 place-items-center rounded-full bg-[var(--valence-purple-soft)] text-primary">
+            <UserRound className="size-8" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-xl font-black">Dr. Emma Lin</p>
+            <p className="font-semibold text-muted-foreground">
+              Clinical Psychologist
+            </p>
+            <p className="mt-2 text-sm font-bold text-primary">
+              Tomorrow, May 15 at 10:00 AM
+            </p>
           </div>
-          <div className="rounded-md bg-muted p-4 text-sm leading-6">
-            <ShieldCheck className="mb-3 size-5 text-primary" />
-            Consent and sharing preferences stay attached to every care note.
-          </div>
-        </CardContent>
-      </Card>
-    </section>
+          <button className="grid size-12 place-items-center rounded-full border border-border bg-white text-primary" type="button">
+            <Video className="size-5" />
+          </button>
+          <button className="grid size-12 place-items-center rounded-full border border-border bg-white text-primary" type="button">
+            <Phone className="size-5" />
+          </button>
+        </div>
+      </div>
+
+      <div className="valence-purple-surface relative overflow-hidden rounded-[1.65rem] p-6 text-white">
+        <p className="text-4xl font-black">Dr. Emma Lin</p>
+        <p className="mt-2 text-xl font-semibold text-white/90">
+          Clinical Psychologist
+        </p>
+        <p className="mt-4 flex items-center gap-2 text-2xl font-bold">
+          <span className="size-3 rounded-full bg-[var(--valence-orange)]" />
+          00:24
+        </p>
+        <div className="mt-9 grid grid-cols-4 gap-4">
+          {[
+            ["Mute", Mic],
+            ["Video", Video],
+            ["Notes", ClipboardList],
+            ["End", Phone]
+          ].map(([label, Icon]) => (
+            <button
+              className="grid place-items-center gap-2 text-sm font-bold text-white"
+              key={label as string}
+              type="button"
+            >
+              <span className="grid size-14 place-items-center rounded-full bg-white/18">
+                <Icon className="size-5" />
+              </span>
+              {label as string}
+            </button>
+          ))}
+        </div>
+        <Mascot
+          className="absolute bottom-5 right-7 size-20"
+          tone="purple"
+        />
+      </div>
+
+      <Button className="valence-brand-button h-16 rounded-[1.35rem] text-xl font-extrabold">
+        <CalendarDays className="size-5" />
+        Book new session
+      </Button>
+    </PageChrome>
   );
 }
 
 function MessagesPage() {
+  const messages = [
+    {
+      body: "Hi there, I am glad you are here. How are you feeling today?",
+      id: "clinician-welcome",
+      mine: false,
+      time: "10:00 AM"
+    },
+    {
+      body: "I have been feeling really anxious lately, especially at night.",
+      id: "member-anxious",
+      mine: true,
+      time: "10:01 AM"
+    },
+    {
+      body: "Thank you for sharing that with me. Anxiety can be really tough, especially when it affects your rest.",
+      id: "clinician-validate",
+      mine: false,
+      time: "10:02 AM"
+    },
+    {
+      body: "It helps just talking about it. I feel so overwhelmed sometimes.",
+      id: "member-overwhelmed",
+      mine: true,
+      time: "10:03 AM"
+    },
+    {
+      body: "Let us try a quick breathing exercise together. It can help calm your mind and body.",
+      id: "clinician-breathing",
+      mine: false,
+      time: "10:04 AM"
+    }
+  ];
+
   return (
-    <section className="mx-auto flex max-w-6xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Messages</CardTitle>
-          <CardDescription>
-            A private inbox for care team conversations.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3">
-          {[
-            "Your clinician shared a prep note for your next session.",
-            "A care coordinator will confirm availability once scheduling is live.",
-            "System reminders will appear here after notification rules are active."
-          ].map((message, index) => (
-            <div
-              className="flex items-start gap-3 rounded-md border border-border bg-background p-4"
-              key={message}
+    <section className="mx-auto flex max-w-3xl flex-col gap-5 px-5 pb-8 pt-3 sm:px-6 lg:px-8">
+      <div className="sticky top-[calc(5rem+env(safe-area-inset-top))] z-20 flex items-center gap-3 rounded-[1.5rem] border border-border bg-white/90 p-3 shadow-sm backdrop-blur">
+        <span className="grid size-14 place-items-center rounded-full bg-[var(--valence-purple-soft)] text-primary">
+          <UserRound className="size-7" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-xl font-black">Dr. Emma Lin</p>
+          <p className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+            <span className="size-3 rounded-full bg-emerald-500" />
+            Active now
+          </p>
+        </div>
+        <button
+          className="grid size-12 place-items-center rounded-2xl border border-border bg-white"
+          type="button"
+        >
+          <Phone className="size-5" />
+        </button>
+      </div>
+
+      <span className="w-fit rounded-full bg-[var(--valence-purple-soft)] px-4 py-1.5 text-sm font-extrabold text-primary">
+        your session
+      </span>
+
+      <div className="grid gap-4">
+        {messages.map((message) => (
+          <div
+            className={cn(
+              "max-w-[82%] rounded-[1.45rem] p-5 shadow-sm",
+              message.mine
+                ? "valence-purple-surface ml-auto text-white"
+                : "valence-panel text-foreground"
+            )}
+            key={message.id}
+          >
+            <p className="text-lg font-semibold leading-8">{message.body}</p>
+            <p
+              className={cn(
+                "mt-3 text-sm font-bold",
+                message.mine ? "text-white/82" : "text-muted-foreground"
+              )}
             >
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-accent text-primary">
-                {index === 0 ? (
-                  <MessageCircle className="size-4" />
-                ) : (
-                  <Send className="size-4" />
-                )}
-              </span>
-              <p className="text-sm leading-6 text-muted-foreground">
-                {message}
-              </p>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+              {message.time}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-3">
+        <p className="text-sm font-semibold text-muted-foreground">
+          Need help getting started?
+        </p>
+        <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+          {["I feel overwhelmed", "Can not sleep", "Racing thoughts"].map(
+            (prompt) => (
+              <button
+                className="whitespace-nowrap rounded-full border border-primary/55 bg-white px-4 py-2 text-sm font-extrabold text-primary"
+                key={prompt}
+                type="button"
+              >
+                <Sparkles className="mr-1 inline size-4" />
+                {prompt}
+              </button>
+            )
+          )}
+        </div>
+      </div>
+
+      <div className="sticky bottom-[calc(6.5rem+env(safe-area-inset-bottom))] z-20 flex items-center gap-3">
+        <button
+          className="valence-brand-button grid size-14 place-items-center rounded-full text-white"
+          type="button"
+        >
+          +
+        </button>
+        <div className="flex h-14 min-w-0 flex-1 items-center rounded-full border border-border bg-white px-5 text-muted-foreground shadow-sm">
+          Write a message&hellip;
+        </div>
+        <button
+          className="valence-brand-button grid size-14 place-items-center rounded-full text-white"
+          type="button"
+        >
+          <Send className="size-5" />
+        </button>
+      </div>
     </section>
   );
 }
@@ -1087,80 +1578,128 @@ function ProfilePage({
   versions: VersionState;
   onSignOut: () => void;
 }) {
-  return (
-    <section className="mx-auto flex max-w-6xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
-      <div className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
-        <Card>
-          <CardHeader>
-            <div className="mb-2 flex size-11 items-center justify-center rounded-md bg-accent text-primary">
-              <UserRound className="size-5" />
-            </div>
-            <CardTitle>Profile</CardTitle>
-            <CardDescription>
-              Signed in as {user.email ?? "your Valence account"}.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              className="w-full justify-start"
-              onClick={onSignOut}
-              type="button"
-              variant="outline"
-            >
-              <LogOut data-icon="inline-start" />
-              Sign out
-            </Button>
-          </CardContent>
-        </Card>
+  const settings = [
+    ["Personal info", "Update your profile and personal details", UserRound, "purple"],
+    ["Therapy goals", "View and update your goals", Target, "orange"],
+    ["Notifications", "Manage notification preferences", Bell, "yellow"],
+    ["Privacy", "Manage your data and privacy settings", ShieldCheck, "ink"],
+    ["Payment", "Manage subscription and payments", CreditCard, "white"]
+  ] as const;
 
-        <Card>
-          <CardHeader>
-            <CardTitle>App version</CardTitle>
-            <CardDescription>
-              Use these values when confirming which native shell and live
-              update are running.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-md border border-border bg-background p-4">
-              <p className="text-xs font-medium text-muted-foreground">
-                Installed
-              </p>
-              <p className="mt-2 font-mono text-lg tabular-nums">
-                {versions.installedVersion}
-              </p>
-            </div>
-            <div className="rounded-md border border-border bg-background p-4">
-              <p className="text-xs font-medium text-muted-foreground">
-                Capgo
-              </p>
-              <p className="mt-2 font-mono text-lg tabular-nums">
-                {versions.capgoVersion}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+  return (
+    <PageChrome
+      description="You are doing great. Keep it going."
+      mascot={<SparkMark className="size-9" />}
+      title="Olivia Martinez"
+    >
+      <div className="flex flex-col items-center text-center">
+        <div className="relative">
+          <span className="grid size-32 place-items-center rounded-full bg-[var(--valence-purple-soft)] text-primary shadow-sm">
+            <UserRound className="size-16" />
+          </span>
+          <button
+            className="absolute bottom-1 right-0 grid size-12 place-items-center rounded-full bg-white text-primary shadow-lg"
+            type="button"
+          >
+            <PenLine className="size-5" />
+          </button>
+        </div>
+        <p className="mt-3 text-sm font-semibold text-muted-foreground">
+          {user.email ?? "your Valence account"}
+        </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Privacy</CardTitle>
-          <CardDescription>
-            Account controls are private by default while settings are built.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-md bg-muted p-4 text-sm leading-6">
-            Only explicitly shared care context should leave the member
-            workspace.
-          </div>
-          <div className="rounded-md bg-muted p-4 text-sm leading-6">
-            Admin visibility and audit trails will be governed from the
-            platform API.
-          </div>
-        </CardContent>
-      </Card>
-    </section>
+      <div className="valence-purple-surface flex items-center gap-5 overflow-hidden rounded-[1.65rem] p-5 text-white">
+        <Mascot className="size-24 shrink-0" tone="yellow" />
+        <div className="min-w-0 flex-1">
+          <p className="text-3xl font-black">12-day streak</p>
+          <p className="mt-1 text-lg font-semibold text-white/90">
+            You logged your mood 12 days in a row
+          </p>
+        </div>
+        <ChevronRight className="size-7" />
+      </div>
+
+      <div className="valence-panel rounded-[1.65rem] p-5">
+        <div className="flex justify-between">
+          <h2 className="text-2xl font-semibold">Your progress</h2>
+          <p className="text-xl font-black text-primary">5 / 7</p>
+        </div>
+        <p className="mt-3 font-extrabold text-primary">
+          Journal days this week
+        </p>
+        <div className="mt-5 grid grid-cols-7 gap-3 text-center">
+          {[
+            { day: "M", id: "monday" },
+            { day: "T", id: "tuesday" },
+            { day: "W", id: "wednesday" },
+            { day: "T", id: "thursday" },
+            { day: "F", id: "friday" },
+            { day: "S", id: "saturday" },
+            { day: "S", id: "sunday" }
+          ].map((day, index) => (
+            <span className="grid gap-2" key={day.id}>
+              <span
+                className={cn(
+                  "grid size-10 place-items-center rounded-full border text-white",
+                  index < 5
+                    ? "border-primary bg-primary"
+                    : "border-border bg-white text-transparent"
+                )}
+              >
+                <Check className="size-5" />
+              </span>
+              <span className="text-sm font-bold text-muted-foreground">
+                {day.day}
+              </span>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="valence-panel overflow-hidden rounded-[1.65rem]">
+        {settings.map(([title, detail, Icon, tone]) => (
+          <button
+            className="flex w-full items-center gap-4 border-b border-border/80 p-5 text-left last:border-b-0"
+            key={title}
+            type="button"
+          >
+            <span
+              className={cn(
+                "grid size-13 place-items-center rounded-2xl",
+                tone === "purple" && "bg-primary text-white",
+                tone === "orange" && "bg-[var(--valence-orange)] text-white",
+                tone === "yellow" && "bg-[var(--valence-yellow)] text-foreground",
+                tone === "ink" && "bg-foreground text-white",
+                tone === "white" && "bg-muted text-foreground"
+              )}
+            >
+              <Icon className="size-6" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-lg font-black">{title}</span>
+              <span className="mt-1 block text-sm font-semibold leading-5 text-muted-foreground">
+                {detail}
+              </span>
+            </span>
+            <ChevronRight className="size-5" />
+          </button>
+        ))}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <VersionBadge versions={versions} />
+        <Button
+          className="h-13 rounded-2xl font-extrabold"
+          onClick={onSignOut}
+          type="button"
+          variant="outline"
+        >
+          <LogOut className="size-4" />
+          Sign out
+        </Button>
+      </div>
+    </PageChrome>
   );
 }
 
@@ -1180,8 +1719,10 @@ function ActivePage({
   onSignOut: () => void;
 }) {
   switch (page) {
-    case "care-plan":
-      return <CarePlanPage />;
+    case "exercises":
+      return <ExercisesPage />;
+    case "sessions":
+      return <SessionsPage />;
     case "messages":
       return <MessagesPage />;
     case "profile":
@@ -1192,18 +1733,17 @@ function ActivePage({
           versions={versions}
         />
       );
-    case "today":
+    case "home":
       return (
-        <MemberDashboard
+        <HomePage
           onEnablePushNotifications={onEnablePushNotifications}
           pushRegistration={pushRegistration}
-          user={user}
         />
       );
   }
 }
 
-export function AppAuthExperience({ page = "today" }: { page?: PageKey }) {
+export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const versions = useAppVersions();
   const activePage = useActivePage(page);
@@ -1412,16 +1952,7 @@ export function AppAuthExperience({ page = "today" }: { page?: PageKey }) {
   }
 
   if (authState.isLoading) {
-    return (
-      <main className="valence-auth-scene valence-safe-screen grid place-items-center bg-background p-6 text-foreground">
-        <Card className="w-full max-w-sm">
-          <CardHeader>
-            <CardTitle>Opening Valence</CardTitle>
-            <CardDescription>Checking your session.</CardDescription>
-          </CardHeader>
-        </Card>
-      </main>
-    );
+    return <SplashScreen versions={versions} />;
   }
 
   if (!authState.user) {
