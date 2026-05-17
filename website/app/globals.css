@@ -1,16 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #172126;
-  --card: #f4f8f7;
-  --card-foreground: #172126;
-  --primary: #356b64;
+  --background: #f4f0e8;
+  --foreground: #181512;
+  --card: #fffaf1;
+  --card-foreground: #181512;
+  --primary: #244f49;
   --primary-foreground: #ffffff;
-  --muted: #e9f0ee;
-  --muted-foreground: #64716f;
-  --border: #d9e3e0;
-  --radius: 0.5rem;
+  --secondary: #e0d6c9;
+  --secondary-foreground: #181512;
+  --muted: #ebe4d8;
+  --muted-foreground: #70685f;
+  --accent: #dbe8df;
+  --accent-foreground: #183b36;
+  --border: #d5c9b9;
+  --ring: #244f49;
+  --radius: 0.75rem;
 }
 
 @theme inline {
@@ -20,9 +25,16 @@
   --color-card-foreground: var(--card-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
   --color-border: var(--border);
+  --color-ring: var(--ring);
+  --font-display: var(--font-valence-display);
+  --font-sans: var(--font-valence-sans);
   --radius-md: var(--radius);
 }
 
@@ -31,9 +43,57 @@
 }
 
 body {
-  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
-  background: var(--background);
+  background:
+    radial-gradient(circle at 20% 0%, rgba(36, 79, 73, 0.16), transparent 30rem),
+    radial-gradient(circle at 85% 12%, rgba(159, 117, 79, 0.14), transparent 28rem),
+    var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-feature-settings:
+    "cv02",
+    "cv03",
+    "cv04",
+    "cv11";
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+button:not(:disabled),
+[role="button"]:not(:disabled) {
+  cursor: pointer;
+}
+
+::selection {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.taupe-panel {
+  background:
+    linear-gradient(180deg, rgba(255, 250, 241, 0.92), rgba(247, 240, 229, 0.86)),
+    var(--card);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 30px 70px rgba(41, 32, 21, 0.14);
+}
+
+.soft-grid {
+  background-image:
+    linear-gradient(rgba(36, 79, 73, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(36, 79, 73, 0.08) 1px, transparent 1px);
+  background-size: 48px 48px;
 }
