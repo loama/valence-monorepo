@@ -4,9 +4,11 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
   useState,
   type FormEvent,
-  type ReactNode
+  type ReactNode,
+  type TouchEvent
 } from "react";
 import type { Provider, User } from "@supabase/supabase-js";
 import {
@@ -39,7 +41,7 @@ import { Label } from "@/components/ui/label";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
-const appBasePath = process.env.NEXT_PUBLIC_APP_BASE_PATH || "/app";
+const appBasePath = process.env.NEXT_PUBLIC_APP_BASE_PATH ?? "/app";
 
 const navItems = [
   { label: "Today", icon: CalendarCheck, active: true },
@@ -171,7 +173,7 @@ function LoginScreen() {
   }
 
   return (
-    <main className="min-h-dvh bg-background px-4 py-8 text-foreground sm:px-6 lg:px-8">
+    <main className="valence-auth-scene min-h-dvh bg-background px-4 py-8 text-foreground sm:px-6 lg:px-8">
       <section className="mx-auto flex min-h-[calc(100dvh-4rem)] max-w-md flex-col justify-center">
         <Card>
           <CardHeader>
@@ -251,7 +253,54 @@ function WorkspaceShell({
   onSignOut: () => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
   const email = user.email ?? "Member";
+  const swipeThreshold = 56;
+
+  function handleSwipeStart(event: TouchEvent<HTMLElement>) {
+    const touch = event.touches[0];
+
+    touchStartX.current = touch.clientX;
+    touchStartY.current = touch.clientY;
+  }
+
+  function handleOpenSwipeMove(event: TouchEvent<HTMLElement>) {
+    if (touchStartX.current === null || touchStartY.current === null) {
+      return;
+    }
+
+    const touch = event.touches[0];
+    const deltaX = touch.clientX - touchStartX.current;
+    const deltaY = Math.abs(touch.clientY - touchStartY.current);
+
+    if (deltaX > swipeThreshold && deltaX > deltaY * 1.4) {
+      setIsOpen(true);
+      touchStartX.current = null;
+      touchStartY.current = null;
+    }
+  }
+
+  function handleCloseSwipeMove(event: TouchEvent<HTMLElement>) {
+    if (touchStartX.current === null || touchStartY.current === null) {
+      return;
+    }
+
+    const touch = event.touches[0];
+    const deltaX = touch.clientX - touchStartX.current;
+    const deltaY = Math.abs(touch.clientY - touchStartY.current);
+
+    if (deltaX < -swipeThreshold && Math.abs(deltaX) > deltaY * 1.4) {
+      setIsOpen(false);
+      touchStartX.current = null;
+      touchStartY.current = null;
+    }
+  }
+
+  function resetSwipe() {
+    touchStartX.current = null;
+    touchStartY.current = null;
+  }
 
   const aside = (
     <aside className="flex h-full w-72 flex-col border-r border-border bg-card">
@@ -284,6 +333,7 @@ function WorkspaceShell({
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
               key={item.label}
+              onClick={() => setIsOpen(false)}
               type="button"
             >
               <Icon className="size-4" />
@@ -308,20 +358,49 @@ function WorkspaceShell({
   );
 
   return (
-    <div className="min-h-dvh bg-background text-foreground lg:grid lg:grid-cols-[18rem_1fr]">
+    <div className="valence-auth-scene min-h-dvh bg-background text-foreground lg:grid lg:grid-cols-[18rem_1fr]">
       <div className="hidden lg:block">{aside}</div>
 
-      {isOpen ? (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <button
-            aria-label="Close navigation"
-            className="absolute inset-0 bg-foreground/30"
-            onClick={() => setIsOpen(false)}
-            type="button"
-          />
-          <div className="absolute inset-y-0 left-0 shadow-xl">{aside}</div>
+      <div
+        className={cn(
+          "fixed inset-0 z-40 lg:hidden",
+          isOpen ? "pointer-events-auto" : "pointer-events-none"
+        )}
+        data-state={isOpen ? "open" : "closed"}
+      >
+        <button
+          aria-label="Close navigation"
+          className={cn(
+            "absolute inset-0 bg-foreground/35 opacity-0 backdrop-blur-[2px] transition-opacity duration-300 ease-out",
+            isOpen && "opacity-100"
+          )}
+          onClick={() => setIsOpen(false)}
+          type="button"
+        />
+        <div
+          className={cn(
+            "absolute inset-y-0 left-0 transform-gpu shadow-2xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+            isOpen ? "translate-x-0" : "-translate-x-[105%]"
+          )}
+          data-testid="mobile-nav-drawer"
+          onTouchCancel={resetSwipe}
+          onTouchEnd={resetSwipe}
+          onTouchMove={handleCloseSwipeMove}
+          onTouchStart={handleSwipeStart}
+        >
+          {aside}
         </div>
-      ) : null}
+      </div>
+
+      <div
+        aria-hidden="true"
+        className="fixed inset-y-0 left-0 z-30 w-7 lg:hidden"
+        data-testid="mobile-nav-edge-swipe"
+        onTouchCancel={resetSwipe}
+        onTouchEnd={resetSwipe}
+        onTouchMove={handleOpenSwipeMove}
+        onTouchStart={handleSwipeStart}
+      />
 
       <main className="min-w-0">
         <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur sm:px-6 lg:px-8">
@@ -460,7 +539,7 @@ export function AppAuthExperience() {
 
   if (authState.isLoading) {
     return (
-      <main className="grid min-h-dvh place-items-center bg-background p-6 text-foreground">
+      <main className="valence-auth-scene grid min-h-dvh place-items-center bg-background p-6 text-foreground">
         <Card className="w-full max-w-sm">
           <CardHeader>
             <CardTitle>Opening Valence</CardTitle>
