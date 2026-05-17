@@ -1,4 +1,3 @@
-import Image from 'next/image'
 import { Familjen_Grotesk, Inter } from 'next/font/google'
 
 import { ButtonLink, PlainButtonLink } from '@/components/elements/button'
@@ -61,20 +60,9 @@ export default function RootLayout({
             }
             logo={
               <NavbarLogo href="/">
-                <Image
-                  src="/img/logos/valence-wordmark-taupe-950.svg"
-                  alt="Valence"
-                  className="dark:hidden"
-                  width={96}
-                  height={28}
-                />
-                <Image
-                  src="/img/logos/valence-wordmark-white.svg"
-                  alt="Valence"
-                  className="not-dark:hidden"
-                  width={96}
-                  height={28}
-                />
+                <span className="font-display text-2xl/7 font-bold tracking-normal text-taupe-950 dark:text-white">
+                  Valence
+                </span>
               </NavbarLogo>
             }
             actions={
