@@ -13,6 +13,10 @@ coverage/
 
 .DS_Store
 *.log
+.capgo_key_v2
+**/.capgo_key_v2
+.capgo_key_v2.pub
+**/.capgo_key_v2.pub
 
 app/android/
 app/node_modules/

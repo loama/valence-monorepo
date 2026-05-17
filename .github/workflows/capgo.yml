@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
+      CAPGO_PRIVATE_KEY: ${{ secrets.CAPGO_PRIVATE_KEY }}
 
     steps:
       - name: Checkout repository
@@ -43,6 +44,10 @@ jobs:
             echo "::error::CAPGO_TOKEN is required to upload production live updates."
             exit 1
           fi
+          if [ -z "$CAPGO_PRIVATE_KEY" ]; then
+            echo "::error::CAPGO_PRIVATE_KEY is required to upload encrypted production live updates."
+            exit 1
+          fi
 
       - name: Upload production bundle to Capgo
         working-directory: app
@@ -54,5 +59,6 @@ jobs:
             --channel production \
             --bundle "$bundle_version" \
             --comment "$GITHUB_SHA" \
+            --key-data-v2 "$CAPGO_PRIVATE_KEY" \
             --delta \
             --version-exists-ok
