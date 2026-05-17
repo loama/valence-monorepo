@@ -26,19 +26,19 @@
     },
     {
       "src": "/app/?",
-      "dest": "app/"
+      "dest": "app/app"
     },
     {
       "src": "/app/(.*)",
-      "dest": "app/$1"
+      "dest": "app/app/$1"
     },
     {
       "src": "/admin/?",
-      "dest": "admin/"
+      "dest": "admin/admin"
     },
     {
       "src": "/admin/(.*)",
-      "dest": "admin/$1"
+      "dest": "admin/admin/$1"
     },
     {
       "src": "/(.*)",

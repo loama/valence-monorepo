@@ -5,7 +5,7 @@ Internal Next.js and shadcn workspace for Valence operations.
 ## Routes
 
 - Local gateway: `http://localhost:3005/admin`
-- Direct admin workspace: `NEXT_PUBLIC_ADMIN_BASE_PATH="" bun run dev`
+- Direct admin workspace: `http://localhost:3002/admin`
 - Vercel: `https://<domain>/admin`
 
 ## Environment
