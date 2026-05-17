@@ -11,7 +11,7 @@ import {
   type TouchEvent
 } from "react";
 import { App } from "@capacitor/app";
-import { Browser } from "@capacitor/browser";
+import { AppLauncher } from "@capacitor/app-launcher";
 import { Capacitor } from "@capacitor/core";
 import type { Provider, User } from "@supabase/supabase-js";
 import {
@@ -118,18 +118,6 @@ function getRedirectTo() {
   return `${window.location.origin}${appBasePath}`;
 }
 
-async function closeAuthBrowser() {
-  if (!Capacitor.isNativePlatform()) {
-    return;
-  }
-
-  try {
-    await Browser.close();
-  } catch {
-    // The browser may already be closed by the OS after a universal link opens.
-  }
-}
-
 function ProviderMark({ label }: { label: string }) {
   return (
     <span className="flex size-5 items-center justify-center rounded-sm border border-border bg-background text-xs font-semibold">
@@ -198,10 +186,7 @@ function LoginScreen() {
     }
 
     if (isNative && data.url) {
-      await Browser.open({
-        url: data.url,
-        presentationStyle: "fullscreen"
-      });
+      await AppLauncher.openUrl({ url: data.url });
     }
   }
 
@@ -625,7 +610,6 @@ export function AppAuthExperience() {
 
     if (Capacitor.isNativePlatform()) {
       void App.addListener("appUrlOpen", async ({ url }) => {
-        await closeAuthBrowser();
         const user = await exchangeSessionFromUrl(url);
 
         if (user && isMounted) {
