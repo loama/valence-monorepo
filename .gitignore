@@ -22,3 +22,4 @@ website/node_modules/
 api/node_modules/
 database/node_modules/
 database/supabase/.temp/
+.vercel
