@@ -52,7 +52,7 @@ jobs:
       - name: Upload production bundle to Capgo
         working-directory: app
         run: |
-          bundle_version="0.1.${GITHUB_RUN_NUMBER}"
+          bundle_version="0.1.$(date -u +%Y%m%d%H%M%S)"
           bunx @capgo/cli@latest bundle upload com.valencedev.platform \
             --apikey "$CAPGO_TOKEN" \
             --path out \
