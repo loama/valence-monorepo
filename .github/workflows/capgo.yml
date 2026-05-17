@@ -1,0 +1,58 @@
+name: Capgo
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - app/**
+      - .github/workflows/capgo.yml
+  workflow_dispatch:
+
+concurrency:
+  group: capgo-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deploy production live update
+    runs-on: ubuntu-latest
+    env:
+      CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install app dependencies
+        working-directory: app
+        run: bun install --frozen-lockfile
+
+      - name: Build mobile web bundle
+        working-directory: app
+        run: bun run build:mobile
+
+      - name: Verify Capgo token
+        run: |
+          if [ -z "$CAPGO_TOKEN" ]; then
+            echo "::error::CAPGO_TOKEN is required to upload production live updates."
+            exit 1
+          fi
+
+      - name: Upload production bundle to Capgo
+        working-directory: app
+        run: |
+          bundle_version="0.1.${GITHUB_RUN_NUMBER}"
+          bunx @capgo/cli@latest bundle upload com.valencedev.platform \
+            --apikey "$CAPGO_TOKEN" \
+            --path out \
+            --channel production \
+            --bundle "$bundle_version" \
+            --comment "$GITHUB_SHA" \
+            --delta \
+            --version-exists-ok
