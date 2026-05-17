@@ -1,0 +1,55 @@
+project_id = "valence"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 17
+
+[db.pooler]
+enabled = false
+port = 54329
+pool_mode = "transaction"
+default_pool_size = 20
+max_client_conn = 100
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "http://localhost:3002/admin"
+additional_redirect_urls = [
+  "http://localhost:3002/admin",
+  "http://localhost:3002/admin/login",
+  "http://localhost:3002/admin/auth/callback",
+  "http://localhost:3005/admin",
+  "http://localhost:3005/admin/login",
+  "http://localhost:3005/admin/auth/callback",
+  "https://valencedev.com/admin/login",
+  "https://valencedev.com/admin/auth/callback",
+  "https://valencedev.com/admin"
+]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+
+[auth.email]
+enable_signup = false
+enable_confirmations = true
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"

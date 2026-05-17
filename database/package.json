@@ -1,0 +1,31 @@
+{
+  "name": "@valence/database",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.3.13",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "db:check": "drizzle-kit check",
+    "db:generate": "drizzle-kit generate && bun scripts/sync-drizzle-migrations.mjs",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "db:types": "supabase gen types typescript --local > src/database.types.ts",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:reset": "supabase db reset",
+    "supabase:pull": "supabase db pull",
+    "supabase:push": "supabase db push"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^1.0.0-beta.16",
+    "postgres": "^3.4.8"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.4",
+    "drizzle-kit": "^1.0.0-beta.16",
+    "supabase": "^2.68.0",
+    "typescript": "~6.0.3"
+  }
+}
