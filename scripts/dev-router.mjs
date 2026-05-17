@@ -162,6 +162,18 @@ async function proxyRequest(request) {
   });
 }
 
+function buildUpstreamUrl(request, protocol) {
+  const incomingUrl = new URL(request.url);
+  const upstream = chooseUpstream(incomingUrl.pathname);
+  const targetUrl = new URL(request.url);
+
+  targetUrl.protocol = protocol;
+  targetUrl.hostname = "127.0.0.1";
+  targetUrl.port = String(upstream.port);
+
+  return targetUrl;
+}
+
 function shutdown(code = 0) {
   if (shuttingDown) {
     return;
@@ -185,8 +197,28 @@ try {
   routerServer = Bun.serve({
     port: routerPort,
     idleTimeout: 120,
-    async fetch(request) {
+    async fetch(request, server) {
       try {
+        if (request.headers.get("upgrade")?.toLowerCase() === "websocket") {
+          const targetUrl = buildUpstreamUrl(request, "ws:");
+
+          if (
+            server.upgrade(request, {
+              data: {
+                pendingMessages: [],
+                targetUrl: targetUrl.toString(),
+                upstreamSocket: null
+              }
+            })
+          ) {
+            return;
+          }
+
+          return new Response("Valence dev router websocket upgrade failed", {
+            status: 400
+          });
+        }
+
         return await proxyRequest(request);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -194,6 +226,46 @@ try {
         return new Response(`Valence dev router upstream failed: ${message}`, {
           status: 502
         });
+      }
+    },
+    websocket: {
+      open(clientSocket) {
+        const upstreamSocket = new WebSocket(clientSocket.data.targetUrl);
+
+        clientSocket.data.upstreamSocket = upstreamSocket;
+
+        upstreamSocket.addEventListener("open", () => {
+          for (const message of clientSocket.data.pendingMessages) {
+            upstreamSocket.send(message);
+          }
+
+          clientSocket.data.pendingMessages = [];
+        });
+
+        upstreamSocket.addEventListener("message", (event) => {
+          clientSocket.send(event.data);
+        });
+
+        upstreamSocket.addEventListener("close", () => {
+          clientSocket.close();
+        });
+
+        upstreamSocket.addEventListener("error", () => {
+          clientSocket.close(1011, "Upstream websocket failed");
+        });
+      },
+      message(clientSocket, message) {
+        const upstreamSocket = clientSocket.data.upstreamSocket;
+
+        if (upstreamSocket?.readyState === WebSocket.OPEN) {
+          upstreamSocket.send(message);
+          return;
+        }
+
+        clientSocket.data.pendingMessages.push(message);
+      },
+      close(clientSocket) {
+        clientSocket.data.upstreamSocket?.close();
       }
     }
   });
