@@ -13,6 +13,10 @@
   ],
   "routes": [
     {
+      "src": "/app/_next/(.*)",
+      "dest": "app/_next/$1"
+    },
+    {
       "src": "/app(?:/(.*))?",
       "dest": "app"
     },
