@@ -17,6 +17,13 @@
   ],
   "routes": [
     {
+      "src": "/.well-known/apple-app-site-association",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "dest": "website/.well-known/apple-app-site-association"
+    },
+    {
       "src": "/app/_next/(.*)",
       "dest": "/_next/$1"
     },

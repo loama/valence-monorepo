@@ -10,6 +10,9 @@ import {
   type ReactNode,
   type TouchEvent
 } from "react";
+import { App } from "@capacitor/app";
+import { Browser } from "@capacitor/browser";
+import { Capacitor } from "@capacitor/core";
 import type { Provider, User } from "@supabase/supabase-js";
 import {
   Activity,
@@ -42,6 +45,10 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 const appBasePath = process.env.NEXT_PUBLIC_APP_BASE_PATH ?? "/app";
+const webRedirectUrl =
+  process.env.NEXT_PUBLIC_APP_WEB_REDIRECT_URL ?? "https://valencedev.com/app";
+const nativeRedirectUrl =
+  process.env.NEXT_PUBLIC_APP_NATIVE_REDIRECT_URL ?? webRedirectUrl;
 
 const navItems = [
   { label: "Today", icon: CalendarCheck, active: true },
@@ -100,11 +107,27 @@ function authReducer(_state: AuthState, action: AuthAction): AuthState {
 }
 
 function getRedirectTo() {
+  if (Capacitor.isNativePlatform()) {
+    return nativeRedirectUrl;
+  }
+
   if (typeof window === "undefined") {
     return appBasePath;
   }
 
   return `${window.location.origin}${appBasePath}`;
+}
+
+async function closeAuthBrowser() {
+  if (!Capacitor.isNativePlatform()) {
+    return;
+  }
+
+  try {
+    await Browser.close();
+  } catch {
+    // The browser may already be closed by the OS after a universal link opens.
+  }
 }
 
 function ProviderMark({ label }: { label: string }) {
@@ -158,10 +181,12 @@ function LoginScreen() {
       return;
     }
 
-    const { error: providerError } = await supabase.auth.signInWithOAuth({
+    const isNative = Capacitor.isNativePlatform();
+    const { data, error: providerError } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
         redirectTo: getRedirectTo(),
+        skipBrowserRedirect: isNative,
         queryParams:
           provider === "google" ? { prompt: "select_account" } : undefined
       }
@@ -169,6 +194,14 @@ function LoginScreen() {
 
     if (providerError) {
       setError("We could not start that sign-in flow. Check auth settings.");
+      return;
+    }
+
+    if (isNative && data.url) {
+      await Browser.open({
+        url: data.url,
+        presentationStyle: "fullscreen"
+      });
     }
   }
 
@@ -524,6 +557,45 @@ export function AppAuthExperience() {
 
   useEffect(() => {
     let isMounted = true;
+    let appUrlOpenHandle: { remove: () => Promise<void> } | null = null;
+
+    async function exchangeSessionFromUrl(urlString: string) {
+      if (!supabase) {
+        return null;
+      }
+
+      const url = new URL(urlString);
+      const code = url.searchParams.get("code");
+
+      if (code) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+        if (error) {
+          return null;
+        }
+
+        return data.session?.user ?? null;
+      }
+
+      const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
+      const accessToken = hashParams.get("access_token");
+      const refreshToken = hashParams.get("refresh_token");
+
+      if (!accessToken || !refreshToken) {
+        return null;
+      }
+
+      const { data, error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken
+      });
+
+      if (error) {
+        return null;
+      }
+
+      return data.session?.user ?? null;
+    }
 
     async function loadSession() {
       if (!supabase) {
@@ -535,7 +607,7 @@ export function AppAuthExperience() {
       const code = url.searchParams.get("code");
 
       if (code) {
-        await supabase.auth.exchangeCodeForSession(code);
+        await exchangeSessionFromUrl(url.toString());
         url.searchParams.delete("code");
         window.history.replaceState({}, "", url.toString());
       }
@@ -551,6 +623,24 @@ export function AppAuthExperience() {
 
     void loadSession();
 
+    if (Capacitor.isNativePlatform()) {
+      void App.addListener("appUrlOpen", async ({ url }) => {
+        await closeAuthBrowser();
+        const user = await exchangeSessionFromUrl(url);
+
+        if (user && isMounted) {
+          dispatchAuth({ type: "user-changed", user });
+        }
+      }).then((handle) => {
+        if (!isMounted) {
+          void handle.remove();
+          return;
+        }
+
+        appUrlOpenHandle = handle;
+      });
+    }
+
     const {
       data: { subscription }
     } =
@@ -560,6 +650,7 @@ export function AppAuthExperience() {
 
     return () => {
       isMounted = false;
+      void appUrlOpenHandle?.remove();
       subscription?.unsubscribe();
     };
   }, [supabase]);

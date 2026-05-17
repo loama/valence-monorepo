@@ -7,15 +7,18 @@
   "scripts": {
     "dev": "next dev --webpack --port 3001",
     "build": "next build",
-    "build:mobile": "CAPACITOR_EXPORT=true NEXT_PUBLIC_APP_BASE_PATH= next build && cp out/app.html out/index.html",
+    "build:mobile": "CAPACITOR_EXPORT=true NEXT_PUBLIC_APP_BASE_PATH= NEXT_PUBLIC_APP_WEB_REDIRECT_URL=https://valencedev.com/app NEXT_PUBLIC_APP_NATIVE_REDIRECT_URL=https://valencedev.com/app NEXT_PUBLIC_SUPABASE_URL=https://iqkwqjgvtzknyoldnrzj.supabase.co NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_N-PHdL_TMMUEd4yjwo4ajA_ZgB6bGY9 next build && cp out/app.html out/index.html",
     "start": "next start --port 3001",
     "react-doctor": "react-doctor .",
     "cap:sync": "bunx cap sync",
+    "cap:sync:ios": "bun run build:mobile && bunx cap sync ios",
     "cap:add:ios": "bunx cap add ios",
     "cap:add:android": "bunx cap add android"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.0",
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/browser": "^8.0.3",
     "@capacitor/cli": "^8.3.0",
     "@capacitor/core": "^8.3.0",
     "@capacitor/ios": "^8.3.0",

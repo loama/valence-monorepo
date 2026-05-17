@@ -15,7 +15,6 @@ coverage/
 *.log
 
 app/android/
-app/ios/
 app/node_modules/
 admin/node_modules/
 website/node_modules/
