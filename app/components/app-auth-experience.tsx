@@ -5,12 +5,13 @@ import {
   useMemo,
   useReducer,
   useState,
+  useSyncExternalStore,
   type Dispatch,
   type FormEvent,
+  type MouseEvent,
   type ReactNode,
   type SetStateAction
 } from "react";
-import Link from "next/link";
 import { App } from "@capacitor/app";
 import { AppLauncher } from "@capacitor/app-launcher";
 import { Capacitor, type PluginListenerHandle } from "@capacitor/core";
@@ -50,6 +51,15 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle
+} from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -105,6 +115,54 @@ const navItems: Array<{
     page: "profile"
   }
 ];
+
+function getPageHref(page: PageKey) {
+  return navItems.find((item) => item.page === page)?.href ?? `${appRouteBasePath}/`;
+}
+
+function getPageFromPathname(pathname: string): PageKey {
+  const normalizedPathname = pathname.replace(/\/+$/, "");
+
+  if (normalizedPathname.endsWith("/care-plan")) {
+    return "care-plan";
+  }
+
+  if (normalizedPathname.endsWith("/messages")) {
+    return "messages";
+  }
+
+  if (normalizedPathname.endsWith("/profile")) {
+    return "profile";
+  }
+
+  return "today";
+}
+
+function getClientPageFromLocation() {
+  if (typeof window === "undefined") {
+    return "today";
+  }
+
+  return getPageFromPathname(window.location.pathname);
+}
+
+function subscribeToPageChanges(onStoreChange: () => void) {
+  window.addEventListener("popstate", onStoreChange);
+  window.addEventListener("valence:navigation", onStoreChange);
+
+  return () => {
+    window.removeEventListener("popstate", onStoreChange);
+    window.removeEventListener("valence:navigation", onStoreChange);
+  };
+}
+
+function useActivePage(fallbackPage: PageKey) {
+  return useSyncExternalStore(
+    subscribeToPageChanges,
+    getClientPageFromLocation,
+    () => fallbackPage
+  );
+}
 
 const checkInItems = [
   {
@@ -506,39 +564,43 @@ function NativeUpdateDrawer({
   onApplyNow: () => void;
   onApplyNextLaunch: () => void;
 }) {
-  if (!update.bundle) {
-    return null;
-  }
-
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:px-6">
-      <div className="pointer-events-auto mx-auto max-w-lg translate-y-0 rounded-t-lg border border-border bg-card p-4 shadow-2xl sm:rounded-lg">
-        <div className="flex items-start gap-3">
-          <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-md bg-accent text-primary">
-            <CloudDownload className="size-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="font-medium">Update ready</p>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              A new Valence app update is downloaded and ready to apply.
-            </p>
-            {update.percent !== null && update.percent < 100 ? (
-              <p className="mt-2 text-xs text-muted-foreground">
-                Downloading {Math.round(update.percent)}%
-              </p>
-            ) : null}
+    <Drawer dismissible={false} open={Boolean(update.bundle)}>
+      <DrawerContent className="mx-auto max-w-xl px-[env(safe-area-inset-left)]">
+        <DrawerHeader className="text-left">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-md bg-accent text-primary">
+              <CloudDownload className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <DrawerTitle>Update ready</DrawerTitle>
+              <DrawerDescription className="mt-1 leading-6">
+                A new Valence app update is downloaded and ready to apply.
+              </DrawerDescription>
+              {update.percent !== null && update.percent < 100 ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Downloading {Math.round(update.percent)}%
+                </p>
+              ) : null}
+            </div>
           </div>
-        </div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto]">
+        </DrawerHeader>
+        <DrawerFooter className="grid gap-2 sm:grid-cols-[1fr_auto]">
           <Button onClick={onApplyNow} type="button">
             Apply now
           </Button>
-          <Button onClick={onApplyNextLaunch} type="button" variant="outline">
-            Next app launch
-          </Button>
-        </div>
-      </div>
-    </div>
+          <DrawerClose asChild>
+            <Button
+              onClick={onApplyNextLaunch}
+              type="button"
+              variant="outline"
+            >
+              Next app launch
+            </Button>
+          </DrawerClose>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
   );
 }
 
@@ -683,16 +745,23 @@ function WorkspaceShell({
   children,
   user,
   versions,
+  onNavigate,
   onSignOut
 }: {
   activePage: PageKey;
   children: ReactNode;
   user: User;
   versions: VersionState;
+  onNavigate: (page: PageKey) => void;
   onSignOut: () => void;
 }) {
   const email = user.email ?? "Member";
   const activeNav = navItems.find((item) => item.page === activePage);
+
+  function handleNavigate(event: MouseEvent<HTMLAnchorElement>, page: PageKey) {
+    event.preventDefault();
+    onNavigate(page);
+  }
 
   const aside = (
     <aside className="flex h-full w-72 flex-col border-r border-border bg-card">
@@ -708,7 +777,7 @@ function WorkspaceShell({
           const isActive = item.page === activePage;
 
           return (
-            <Link
+            <a
               className={cn(
                 "flex h-10 items-center gap-3 rounded-md px-3 text-left text-sm font-medium transition-colors",
                 isActive
@@ -717,10 +786,11 @@ function WorkspaceShell({
               )}
               href={item.href}
               key={item.label}
+              onClick={(event) => handleNavigate(event, item.page)}
             >
               <Icon className="size-4" />
               {item.label}
-            </Link>
+            </a>
           );
         })}
       </nav>
@@ -741,7 +811,7 @@ function WorkspaceShell({
   );
 
   return (
-    <div className="valence-auth-scene min-h-dvh bg-background pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] text-foreground lg:grid lg:grid-cols-[18rem_1fr]">
+    <div className="min-h-dvh bg-background pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] text-foreground lg:grid lg:grid-cols-[18rem_1fr]">
       <div className="hidden lg:block">{aside}</div>
 
       <main className="min-w-0">
@@ -769,7 +839,7 @@ function WorkspaceShell({
             const isActive = item.page === activePage;
 
             return (
-              <Link
+              <a
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "flex min-h-14 flex-col items-center justify-center gap-1 rounded-md px-1 text-[0.68rem] font-medium leading-none transition-all duration-200 active:scale-[0.98]",
@@ -779,10 +849,11 @@ function WorkspaceShell({
                 )}
                 href={item.href}
                 key={item.page}
+                onClick={(event) => handleNavigate(event, item.page)}
               >
                 <Icon className="size-4" />
                 <span>{item.label}</span>
-              </Link>
+              </a>
             );
           })}
         </div>
@@ -1131,6 +1202,7 @@ function ActivePage({
 export function AppAuthExperience({ page = "today" }: { page?: PageKey }) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const versions = useAppVersions();
+  const activePage = useActivePage(page);
   const [authState, dispatchAuth] = useReducer(authReducer, {
     isLoading: true,
     user: null
@@ -1320,6 +1392,21 @@ export function AppAuthExperience({ page = "today" }: { page?: PageKey }) {
     dispatchAuth({ type: "user-changed", user: null });
   }
 
+  function navigateWithinApp(nextPage: PageKey) {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const href = getPageHref(nextPage);
+
+    if (window.location.pathname !== href) {
+      window.history.pushState({ page: nextPage }, "", href);
+    }
+
+    window.dispatchEvent(new Event("valence:navigation"));
+    window.scrollTo({ top: 0 });
+  }
+
   if (authState.isLoading) {
     return (
       <main className="valence-auth-scene valence-safe-screen grid place-items-center bg-background p-6 text-foreground">
@@ -1339,7 +1426,8 @@ export function AppAuthExperience({ page = "today" }: { page?: PageKey }) {
 
   return (
     <WorkspaceShell
-      activePage={page}
+      activePage={activePage}
+      onNavigate={navigateWithinApp}
       onSignOut={() => void signOut()}
       user={authState.user}
       versions={versions}
@@ -1347,7 +1435,7 @@ export function AppAuthExperience({ page = "today" }: { page?: PageKey }) {
       <ActivePage
         onEnablePushNotifications={() => void enablePushNotifications()}
         onSignOut={() => void signOut()}
-        page={page}
+        page={activePage}
         pushRegistration={pushRegistration}
         user={authState.user}
         versions={versions}
