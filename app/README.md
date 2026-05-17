@@ -19,4 +19,4 @@ Supabase Auth URL configuration for the production project should allow:
 - Redirect URL: `https://valencedev.com/app`
 - Redirect URL: `https://valencedev.com/app/**`
 - Redirect URL: `valence://**`
-- Redirect URL: `com.valence.platform://**`
+- Redirect URL: `com.valencedev.platform://**`

@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: "com.valence.platform",
+  appId: "com.valencedev.platform",
   appName: "Valence",
   webDir: "out",
   server: {

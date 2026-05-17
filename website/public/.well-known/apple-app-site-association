@@ -2,7 +2,7 @@
   "applinks": {
     "details": [
       {
-        "appIDs": ["VS97G4QRJF.com.valence.platform"],
+        "appIDs": ["VS97G4QRJF.com.valencedev.platform"],
         "components": [
           {
             "/": "/app",
