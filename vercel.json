@@ -25,12 +25,20 @@
       "dest": "admin/_next/$1"
     },
     {
-      "src": "/app(?:/(.*))?",
-      "dest": "app"
+      "src": "/app/?",
+      "dest": "app/"
     },
     {
-      "src": "/admin(?:/(.*))?",
-      "dest": "admin"
+      "src": "/app/(.*)",
+      "dest": "app/$1"
+    },
+    {
+      "src": "/admin/?",
+      "dest": "admin/"
+    },
+    {
+      "src": "/admin/(.*)",
+      "dest": "admin/$1"
     },
     {
       "src": "/(.*)",
