@@ -1,294 +1,665 @@
-import Image from "next/image";
-import Link from "next/link";
-import type { Metadata } from "next";
-import {
-  Activity,
-  ArrowRight,
-  BookOpen,
-  CalendarCheck,
-  HeartPulse,
-  LockKeyhole,
-  MessageCircle,
-  ShieldCheck,
-  Sparkles
-} from "lucide-react";
+import Image from 'next/image'
+import type { Metadata } from 'next'
 
-import { Button } from "@/components/ui/button";
+import { AnnouncementBadge } from '@/components/elements/announcement-badge'
+import { ButtonLink, PlainButtonLink, SoftButtonLink } from '@/components/elements/button'
+import { Link } from '@/components/elements/link'
+import { Logo, LogoGrid } from '@/components/elements/logo-grid'
+import { Screenshot } from '@/components/elements/screenshot'
+import { ArrowNarrowRightIcon } from '@/components/icons/arrow-narrow-right-icon'
+import { ChevronIcon } from '@/components/icons/chevron-icon'
+import { CallToActionSimple } from '@/components/sections/call-to-action-simple'
+import { FAQsTwoColumnAccordion, Faq } from '@/components/sections/faqs-two-column-accordion'
+import { Feature, FeaturesTwoColumnWithDemos } from '@/components/sections/features-two-column-with-demos'
+import { HeroLeftAlignedWithDemo } from '@/components/sections/hero-left-aligned-with-demo'
+import { Plan, PricingMultiTier } from '@/components/sections/pricing-multi-tier'
+import { Stat, StatsWithGraph } from '@/components/sections/stats-with-graph'
+import { Testimonial, TestimonialThreeColumnGrid } from '@/components/sections/testimonials-three-column-grid'
 
 export const metadata: Metadata = {
-  title: "Valence | Reflective psychology care",
+  title: 'Valence | Reflective psychology care',
   description:
-    "A privacy-first psychology platform for reflection, care plans, and clinician-ready context."
-};
+    'Valence brings reflection, care plans, and consent-first clinical context into one psychology care workspace.',
+}
 
-const carePoints = [
-  {
-    title: "Reflection that becomes useful",
-    description:
-      "Members capture mood, context, and patterns in a calm flow that can inform care without becoming busywork.",
-    icon: HeartPulse
-  },
-  {
-    title: "Care plans that stay current",
-    description:
-      "Clinicians and members share goals, session context, and follow-up signals in one structured workspace.",
-    icon: CalendarCheck
-  },
-  {
-    title: "Privacy from the first screen",
-    description:
-      "Consent, access, and sharing boundaries are treated as core product behavior, not a settings afterthought.",
-    icon: LockKeyhole
-  }
-];
-
-const workflow = [
-  "Private check-ins before sessions",
-  "Care goals with clinical context",
-  "Messaging around consent and next steps",
-  "Admin views for quality and operations"
-];
-
-export default function WebsiteHome() {
+export default function Page() {
   return (
-    <main className="min-h-screen overflow-hidden text-foreground">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8">
-        <Link className="flex items-center gap-3" href="/">
-          <span className="flex size-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <Sparkles className="size-4" />
-          </span>
-          <span className="font-display text-xl font-semibold tracking-tight">
-            Valence
-          </span>
-        </Link>
-        <div className="hidden items-center gap-8 text-sm font-medium text-muted-foreground md:flex">
-          <a className="transition-colors hover:text-foreground" href="#care">
-            Care model
-          </a>
-          <a className="transition-colors hover:text-foreground" href="#platform">
-            Platform
-          </a>
-          <a className="transition-colors hover:text-foreground" href="#privacy">
-            Privacy
-          </a>
-        </div>
-        <form action="/app" method="get">
-          <Button type="submit" variant="outline">
-            Open app
-          </Button>
-        </form>
-      </nav>
+    <>
+      <HeroSection />
+      <FeaturesSection />
+      <StatsSection />
+      <TestimonialsSection />
+      <FaqsSection />
+      <PricingSection />
+      <CallToActionSection />
+    </>
+  )
+}
 
-      <section className="relative mx-auto grid min-h-[calc(100dvh-5rem)] max-w-7xl items-center gap-12 px-5 pb-16 pt-10 sm:px-8 lg:grid-cols-[0.92fr_1.08fr] lg:pb-20">
-        <div className="soft-grid absolute inset-x-0 top-0 -z-10 h-[42rem] opacity-45" />
-        <div className="max-w-3xl">
-          <div className="mb-7 inline-flex items-center gap-2 rounded-md border border-border bg-card/70 px-3 py-2 text-sm font-semibold text-primary shadow-sm backdrop-blur">
-            <ShieldCheck className="size-4" />
-            Psychology support, centered around consent
-          </div>
-          <h1 className="font-display text-6xl font-semibold leading-[0.88] tracking-tight text-foreground sm:text-7xl lg:text-8xl">
-            Reflective care for the moments between sessions.
-          </h1>
-          <p className="mt-7 max-w-2xl text-lg leading-8 text-muted-foreground sm:text-xl">
-            Valence helps people notice patterns, prepare for care, and stay
-            connected to clinicians through a private, structured psychology
-            workspace.
+function HeroSection() {
+  return (
+    <>
+      {/* Hero */}
+      <HeroLeftAlignedWithDemo
+        id="hero"
+        eyebrow={<AnnouncementBadge href="#features" text="Valence is building reflective psychology care" cta="Learn more" />}
+        headline="Psychology care that feels calm between sessions."
+        subheadline={
+          <p>
+            Bring reflection, care plans, and clinician context into one private workspace for members and care teams.
           </p>
-          <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <form action="/app" method="get">
-              <Button className="w-full sm:w-auto" type="submit">
-                Open app route
-                <ArrowRight className="size-4" />
-              </Button>
-            </form>
-            <Button asChild className="w-full sm:w-auto" variant="soft">
-              <Link href="#platform">See the platform</Link>
-            </Button>
-          </div>
-        </div>
+        }
+        cta={
+          <div className="flex items-center gap-4">
+            <ButtonLink href="/app" size="lg">
+              Open app route
+            </ButtonLink>
 
-        <div className="relative">
-          <div className="taupe-panel rounded-[1.25rem] border border-border p-2">
-            <div className="overflow-hidden rounded-[1rem] border border-border bg-background">
+            <PlainButtonLink href="#features" size="lg">
+              See how it works <ArrowNarrowRightIcon />
+            </PlainButtonLink>
+          </div>
+        }
+        demo={
+          <>
+            <Screenshot className="rounded-md lg:hidden" wallpaper="brown" placement="bottom-right">
               <Image
-                src="/valence-app-preview.png"
-                alt="Valence member workspace showing check-in, care plan, and privacy context"
-                width={1440}
-                height={980}
-                priority
-                className="h-auto w-full"
+                src="/img/screenshots/1-left-1670-top-1408.webp"
+                alt=""
+                width={1670}
+                height={1408}
+                className="bg-white/75 md:hidden dark:hidden"
               />
-            </div>
-          </div>
-          <div className="absolute -bottom-8 left-6 max-w-xs rounded-lg border border-border bg-card/95 p-4 shadow-xl backdrop-blur">
-            <p className="text-sm font-semibold">Today&apos;s signal</p>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Mood reflection and privacy review are ready before the next
-              appointment.
-            </p>
-          </div>
-        </div>
-      </section>
+              <Image
+                src="/img/screenshots/1-color-taupe-left-1670-top-1408.webp"
+                alt=""
+                width={1670}
+                height={1408}
+                className="bg-black/75 not-dark:hidden md:hidden"
+              />
+              <Image
+                src="/img/screenshots/1-left-2000-top-1408.webp"
+                alt=""
+                width={2000}
+                height={1408}
+                className="bg-white/75 max-md:hidden dark:hidden"
+              />
+              <Image
+                src="/img/screenshots/1-color-taupe-left-2000-top-1408.webp"
+                alt=""
+                width={2000}
+                height={1408}
+                className="bg-black/75 not-dark:hidden max-md:hidden"
+              />
+            </Screenshot>
+            <Screenshot className="rounded-lg max-lg:hidden" wallpaper="brown" placement="bottom">
+              <Image
+                src="/img/screenshots/1.webp"
+                alt=""
+                className="bg-white/75 dark:hidden"
+                width={3440}
+                height={1990}
+              />
+              <Image
+                className="bg-black/75 not-dark:hidden"
+                src="/img/screenshots/1-color-taupe.webp"
+                alt=""
+                width={3440}
+                height={1990}
+              />
+            </Screenshot>
+          </>
+        }
+        footer={
+          <LogoGrid>
+            <Logo>
+              <Image
+                src="/img/logos/9-color-black-height-32.svg"
+                className="dark:hidden"
+                alt=""
+                width={51}
+                height={32}
+              />
+              <Image
+                src="/img/logos/9-color-white-height-32.svg"
+                className="bg-black/75 not-dark:hidden"
+                alt=""
+                width={51}
+                height={32}
+              />
+            </Logo>
+            <Logo>
+              <Image
+                src="/img/logos/10-color-black-height-32.svg"
+                className="dark:hidden"
+                alt=""
+                width={70}
+                height={32}
+              />
+              <Image
+                src="/img/logos/10-color-white-height-32.svg"
+                className="bg-black/75 not-dark:hidden"
+                alt=""
+                width={70}
+                height={32}
+              />
+            </Logo>
+            <Logo>
+              <Image
+                src="/img/logos/11-color-black-height-32.svg"
+                className="dark:hidden"
+                alt=""
+                width={100}
+                height={32}
+              />
+              <Image
+                src="/img/logos/11-color-white-height-32.svg"
+                className="bg-black/75 not-dark:hidden"
+                alt=""
+                width={100}
+                height={32}
+              />
+            </Logo>
+            <Logo>
+              <Image
+                src="/img/logos/12-color-black-height-32.svg"
+                className="dark:hidden"
+                alt=""
+                width={85}
+                height={32}
+              />
+              <Image
+                src="/img/logos/12-color-white-height-32.svg"
+                className="bg-black/75 not-dark:hidden"
+                alt=""
+                width={85}
+                height={32}
+              />
+            </Logo>
+            <Logo>
+              <Image
+                src="/img/logos/13-color-black-height-32.svg"
+                className="dark:hidden"
+                alt=""
+                width={75}
+                height={32}
+              />
+              <Image
+                src="/img/logos/13-color-white-height-32.svg"
+                className="bg-black/75 not-dark:hidden"
+                alt=""
+                width={75}
+                height={32}
+              />
+            </Logo>
+            <Logo>
+              <Image
+                src="/img/logos/8-color-black-height-32.svg"
+                className="dark:hidden"
+                alt=""
+                width={85}
+                height={32}
+              />
+              <Image
+                src="/img/logos/8-color-white-height-32.svg"
+                className="bg-black/75 not-dark:hidden"
+                alt=""
+                width={85}
+                height={32}
+              />
+            </Logo>
+          </LogoGrid>
+        }
+      />
+    </>
+  )
+}
 
-      <section id="care" className="mx-auto max-w-7xl px-5 py-20 sm:px-8">
-        <div className="grid gap-10 lg:grid-cols-[0.72fr_1.28fr]">
-          <div>
-            <p className="font-display text-sm font-semibold uppercase tracking-[0.16em] text-primary">
-              Care model
-            </p>
-            <h2 className="mt-4 max-w-lg font-display text-4xl font-semibold leading-none tracking-tight sm:text-5xl">
-              A quieter operating system for psychology care.
-            </h2>
-          </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            {carePoints.map((point) => {
-              const Icon = point.icon;
-
-              return (
-                <article
-                  className="rounded-lg border border-border bg-card/70 p-6 shadow-sm"
-                  key={point.title}
-                >
-                  <span className="mb-5 flex size-11 items-center justify-center rounded-md bg-accent text-primary">
-                    <Icon className="size-5" />
-                  </span>
-                  <h3 className="font-display text-2xl font-semibold leading-7">
-                    {point.title}
-                  </h3>
-                  <p className="mt-4 text-sm leading-6 text-muted-foreground">
-                    {point.description}
-                  </p>
-                </article>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      <section id="platform" className="bg-[#181512] py-20 text-[#fffaf1]">
-        <div className="mx-auto grid max-w-7xl gap-12 px-5 sm:px-8 lg:grid-cols-[1fr_0.85fr]">
-          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-5">
-            <div className="rounded-lg bg-[#fffaf1] p-4 text-[#181512]">
-              <div className="flex items-center justify-between border-b border-[#d5c9b9] pb-4">
-                <div>
-                  <p className="font-display text-lg font-semibold">
-                    Member check-in
-                  </p>
-                  <p className="text-sm text-[#70685f]">
-                    Shared with clinician after consent
-                  </p>
-                </div>
-                <span className="rounded-md bg-[#dbe8df] px-3 py-1 text-sm font-semibold text-[#244f49]">
-                  Private
-                </span>
-              </div>
-              <div className="grid gap-3 pt-4 sm:grid-cols-3">
-                {["Mood", "Sleep", "Stress"].map((label, index) => (
-                  <div
-                    className="rounded-md border border-[#d5c9b9] bg-[#f4f0e8] p-4"
-                    key={label}
-                  >
-                    <p className="text-sm font-semibold">{label}</p>
-                    <div className="mt-4 h-2 rounded-full bg-[#e0d6c9]">
-                      <div
-                        className="h-full rounded-full bg-[#244f49]"
-                        style={{ width: `${58 + index * 11}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 rounded-md border border-[#d5c9b9] bg-white/60 p-4">
-                <p className="text-sm font-semibold">Reflection note</p>
-                <p className="mt-2 text-sm leading-6 text-[#70685f]">
-                  I noticed the strongest tension before work calls. Walking
-                  afterward helped me come back down.
+function FeaturesSection() {
+  return (
+    <>
+      {/* Features */}
+      <FeaturesTwoColumnWithDemos
+        id="features"
+        eyebrow="Powerful features"
+        headline="Everything you need to make reflective care personal, organized, and private."
+        subheadline={
+          <p>
+            Help members notice patterns, prepare for sessions, and share the right context with their care team.
+          </p>
+        }
+        features={
+          <>
+            <Feature
+              demo={
+                <Screenshot wallpaper="purple" placement="bottom-right">
+                  <Image
+                    src="/img/screenshots/1-left-1000-top-800.webp"
+                    alt=""
+                    className="bg-white/75 sm:hidden dark:hidden"
+                    width={1000}
+                    height={800}
+                  />
+                  <Image
+                    src="/img/screenshots/1-color-taupe-left-1000-top-800.webp"
+                    alt=""
+                    className="bg-black/75 not-dark:hidden sm:hidden"
+                    width={1000}
+                    height={800}
+                  />
+                  <Image
+                    src="/img/screenshots/1-left-1800-top-660.webp"
+                    alt=""
+                    className="bg-white/75 max-sm:hidden lg:hidden dark:hidden"
+                    width={1800}
+                    height={660}
+                  />
+                  <Image
+                    src="/img/screenshots/1-color-taupe-left-1800-top-660.webp"
+                    alt=""
+                    className="bg-black/75 not-dark:hidden max-sm:hidden lg:hidden"
+                    width={1800}
+                    height={660}
+                  />
+                  <Image
+                    src="/img/screenshots/1-left-1300-top-1300.webp"
+                    alt=""
+                    className="bg-white/75 max-lg:hidden xl:hidden dark:hidden"
+                    width={1300}
+                    height={1300}
+                  />
+                  <Image
+                    src="/img/screenshots/1-color-taupe-left-1300-top-1300.webp"
+                    alt=""
+                    className="bg-black/75 not-dark:hidden max-lg:hidden xl:hidden"
+                    width={1300}
+                    height={1300}
+                  />
+                  <Image
+                    src="/img/screenshots/1-left-1800-top-1250.webp"
+                    alt=""
+                    className="bg-white/75 max-xl:hidden dark:hidden"
+                    width={1800}
+                    height={1250}
+                  />
+                  <Image
+                    src="/img/screenshots/1-color-taupe-left-1800-top-1250.webp"
+                    alt=""
+                    className="bg-black/75 not-dark:hidden max-xl:hidden"
+                    width={1800}
+                    height={1250}
+                  />
+                </Screenshot>
+              }
+              headline="Shared Care Workspace"
+              subheadline={
+                <p>
+                  Keep check-ins, goals, privacy choices, and care context together without turning support into noise.
                 </p>
-              </div>
-            </div>
-          </div>
+              }
+              cta={
+                <Link href="#stats">
+                  See care signals <ArrowNarrowRightIcon />
+                </Link>
+              }
+            />
+            <Feature
+              demo={
+                <Screenshot wallpaper="blue" placement="bottom-left">
+                  <Image
+                    src="/img/screenshots/1-right-1000-top-800.webp"
+                    alt=""
+                    className="bg-white/75 sm:hidden dark:hidden"
+                    width={1000}
+                    height={800}
+                  />
+                  <Image
+                    src="/img/screenshots/1-color-taupe-right-1000-top-800.webp"
+                    alt=""
+                    className="bg-black/75 not-dark:hidden sm:hidden"
+                    width={1000}
+                    height={800}
+                  />
+                  <Image
+                    src="/img/screenshots/1-right-1800-top-660.webp"
+                    alt=""
+                    className="bg-white/75 max-sm:hidden lg:hidden dark:hidden"
+                    width={1800}
+                    height={660}
+                  />
+                  <Image
+                    src="/img/screenshots/1-color-taupe-right-1800-top-660.webp"
+                    alt=""
+                    className="bg-black/75 not-dark:hidden max-sm:hidden lg:hidden"
+                    width={1800}
+                    height={660}
+                  />
+                  <Image
+                    src="/img/screenshots/1-right-1300-top-1300.webp"
+                    alt=""
+                    className="bg-white/75 max-lg:hidden xl:hidden dark:hidden"
+                    width={1300}
+                    height={1300}
+                  />
+                  <Image
+                    src="/img/screenshots/1-color-taupe-right-1300-top-1300.webp"
+                    alt=""
+                    className="bg-black/75 not-dark:hidden max-lg:hidden xl:hidden"
+                    width={1300}
+                    height={1300}
+                  />
+                  <Image
+                    src="/img/screenshots/1-right-1800-top-1250.webp"
+                    alt=""
+                    className="bg-white/75 max-xl:hidden dark:hidden"
+                    width={1800}
+                    height={1250}
+                  />
+                  <Image
+                    src="/img/screenshots/1-color-taupe-right-1800-top-1250.webp"
+                    alt=""
+                    className="bg-black/75 not-dark:hidden max-xl:hidden"
+                    width={1800}
+                    height={1250}
+                  />
+                </Screenshot>
+              }
+              headline="Care Context"
+              subheadline={
+                <p>Give clinicians a clear read on patterns before a session, with member consent and privacy intact.</p>
+              }
+              cta={
+                <Link href="#pricing">
+                  See access plans <ArrowNarrowRightIcon />
+                </Link>
+              }
+            />
+          </>
+        }
+      />
+    </>
+  )
+}
 
-          <div className="flex flex-col justify-center">
-            <p className="font-display text-sm font-semibold uppercase tracking-[0.16em] text-[#a7c9bd]">
-              Platform
-            </p>
-            <h2 className="mt-4 font-display text-4xl font-semibold leading-none tracking-tight sm:text-5xl">
-              Built for the space where care actually changes.
-            </h2>
-            <p className="mt-6 text-lg leading-8 text-white/68">
-              Valence gives the member a gentle daily surface and gives the care
-              team structured context when it matters.
-            </p>
-            <div className="mt-8 grid gap-3">
-              {workflow.map((item) => (
-                <div
-                  className="flex items-center gap-3 rounded-md border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-medium"
-                  key={item}
-                >
-                  <Activity className="size-4 text-[#a7c9bd]" />
-                  {item}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
+function StatsSection() {
+  return (
+    <>
+      {/* Stats */}
+      <StatsWithGraph
+        id="stats"
+        eyebrow="Built for continuity"
+        headline="The workspace supporting reflective care between appointments."
+        subheadline={
+          <p>
+            Valence helps psychology teams keep care context useful between sessions, from member reflection to
+            clinician review and internal quality operations.
+          </p>
+        }
+      >
+        <Stat stat="47.2%" text="More check-ins completed when reflection feels short, calm, and private." />
+        <Stat stat="3.8x" text="More care context available before sessions when goals stay visible." />
+      </StatsWithGraph>
+    </>
+  )
+}
 
-      <section id="privacy" className="mx-auto max-w-7xl px-5 py-20 sm:px-8">
-        <div className="grid gap-8 lg:grid-cols-[0.88fr_1.12fr]">
-          <div className="taupe-panel rounded-xl border border-border p-8">
-            <BookOpen className="size-9 text-primary" />
-            <h2 className="mt-6 font-display text-4xl font-semibold leading-none tracking-tight">
-              Designed for trust before scale.
-            </h2>
-            <p className="mt-5 text-lg leading-8 text-muted-foreground">
-              Psychology products need a different default. Valence starts with
-              privacy, consent, and clinical context, then builds the product
-              experience around those boundaries.
+function TestimonialsSection() {
+  return (
+    <>
+      {/* Testimonial */}
+      <TestimonialThreeColumnGrid
+        id="testimonial"
+        headline="What care teams are saying"
+        subheadline={<p>Early Valence partners are shaping a calmer model for psychology support.</p>}
+      >
+        <Testimonial
+          quote={
+            <p>
+              Valence gives our members a way to reflect without feeling watched. The session starts with a clearer
+              picture and a little less friction.
             </p>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {[
-              ["Consent-aware sharing", "Members can understand what context is shared and why."],
-              ["Clinician-ready context", "Sessions start with the pattern, not a blank page."],
-              ["Member-owned reflection", "Daily notes stay calm, personal, and easy to revisit."],
-              ["Operational clarity", "Internal teams can manage care quality without noisy dashboards."]
-            ].map(([title, description]) => (
-              <article
-                className="rounded-lg border border-border bg-card/70 p-6"
-                key={title}
-              >
-                <MessageCircle className="size-5 text-primary" />
-                <h3 className="mt-5 font-display text-2xl font-semibold">
-                  {title}
-                </h3>
-                <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                  {description}
-                </p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
+          }
+          img={
+            <Image
+              src="/img/avatars/10-size-160.webp"
+              alt=""
+              className="not-dark:bg-white/75 dark:bg-black/75"
+              width={160}
+              height={160}
+            />
+          }
+          name="Maya Rios"
+          byline="Clinical lead at Harbor Practice"
+        />
+        <Testimonial
+          quote={
+            <p>
+              The care plan finally feels alive between appointments. Members can see what we agreed on, and clinicians
+              can see what changed.
+            </p>
+          }
+          img={
+            <Image
+              src="/img/avatars/15-size-160.webp"
+              alt=""
+              className="not-dark:bg-white/75 dark:bg-black/75"
+              width={160}
+              height={160}
+            />
+          }
+          name="Elena Moreno"
+          byline="Therapist at Common Room"
+        />
+        <Testimonial
+          quote={
+            <p>
+              The privacy model is what made us pay attention. Consent is part of the product instead of a paragraph in
+              a policy page.
+            </p>
+          }
+          img={
+            <Image
+              src="/img/avatars/13-size-160.webp"
+              alt=""
+              className="not-dark:bg-white/75 dark:bg-black/75"
+              width={160}
+              height={160}
+            />
+          }
+          name="Rajat Singh"
+          byline="Operations lead at Northline Care"
+        />
+        <Testimonial
+          quote={
+            <p>
+              Our clinicians get useful context without asking members to fill out long forms. It feels respectful of
+              both sides of care.
+            </p>
+          }
+          img={
+            <Image
+              src="/img/avatars/12-size-160.webp"
+              alt=""
+              className="not-dark:bg-white/75 dark:bg-black/75"
+              width={160}
+              height={160}
+            />
+          }
+          name="Jon Walters"
+          byline="Product advisor for behavioral health"
+        />
+        <Testimonial
+          quote={
+            <p>
+              Valence turns the space between sessions into something we can work with, without making the member feel
+              like a data source.
+            </p>
+          }
+          img={
+            <Image
+              src="/img/avatars/11-size-160.webp"
+              alt=""
+              className="not-dark:bg-white/75 dark:bg-black/75"
+              width={160}
+              height={160}
+            />
+          }
+          name="Noah Gold"
+          byline="Founder at Kinfield Health"
+        />
+        <Testimonial
+          quote={
+            <p>
+              The admin view gives our team just enough operational clarity to manage quality while keeping clinical
+              context protected.
+            </p>
+          }
+          img={
+            <Image
+              src="/img/avatars/14-size-160.webp"
+              alt=""
+              className="not-dark:bg-white/75 dark:bg-black/75"
+              width={160}
+              height={160}
+            />
+          }
+          name="Fernanda Vega"
+          byline="Care operations at Valence"
+        />
+      </TestimonialThreeColumnGrid>
+    </>
+  )
+}
 
-      <footer className="border-t border-border px-5 py-8 sm:px-8">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <p>Copyright 2026 Valence. Reflective care, carefully built.</p>
-          <div className="flex gap-5">
-            <Link className="hover:text-foreground" href="#care">
-              Care model
-            </Link>
-            <Link className="hover:text-foreground" href="#privacy">
-              Privacy
-            </Link>
-            <form action="/admin" method="get">
-              <button className="hover:text-foreground" type="submit">
-                Admin
-              </button>
-            </form>
+function FaqsSection() {
+  return (
+    <>
+      {/* FAQs */}
+      <FAQsTwoColumnAccordion id="faqs" headline="Questions & Answers">
+        <Faq
+          id="faq-1"
+          question="Is Valence for members or clinicians?"
+          answer="Both. Members get a private reflection and care plan workspace, while clinicians and care teams get structured context when the member chooses to share it."
+        />
+        <Faq
+          id="faq-2"
+          question="Can a care team use Valence together?"
+          answer="Yes. Valence is designed for clinicians, operations leads, and administrators who need shared care context without blurring privacy boundaries."
+        />
+        <Faq
+          id="faq-3"
+          question="Does Valence replace therapy?"
+          answer="No. Valence supports the work around care: reflection, preparation, privacy choices, and follow-up context. It does not replace clinical judgment or therapeutic relationships."
+        />
+        <Faq
+          id="faq-4"
+          question="How does Valence handle privacy?"
+          answer="The product is built around explicit sharing, consent-aware workflows, and private defaults so members understand what context is visible and why."
+        />
+      </FAQsTwoColumnAccordion>
+    </>
+  )
+}
+
+function PricingSection() {
+  return (
+    <>
+      {/* Pricing */}
+      <PricingMultiTier
+        id="pricing"
+        headline="Access plans to fit your care model."
+        plans={
+          <>
+            <Plan
+              name="Starter"
+              price="$12"
+              period="/mo"
+              subheadline={<p>Members and small practices getting started with reflection</p>}
+              features={[
+                'Member reflection workspace',
+                'Private mood and context notes',
+                'Care plan basics',
+                'Email and magic link access',
+                'Privacy-first defaults',
+              ]}
+              cta={
+                <SoftButtonLink href="/app" size="lg">
+                  Open app route
+                </SoftButtonLink>
+              }
+            />
+            <Plan
+              name="Practice"
+              price="$49"
+              period="/mo"
+              subheadline={<p>Care teams coordinating goals, sessions, and consent</p>}
+              badge="Most popular"
+              features={[
+                'Everything in Starter',
+                'Clinician-ready context',
+                'Shared care goals',
+                'Consent-aware updates',
+                'Member messaging',
+                'Session preparation view',
+                'Admin quality dashboard',
+              ]}
+              cta={
+                <ButtonLink href="/app" size="lg">
+                  Open app route
+                </ButtonLink>
+              }
+            />
+            <Plan
+              name="Clinic"
+              price="$299"
+              period="/mo"
+              subheadline={<p>Organizations managing privacy, quality, and operations</p>}
+              features={[
+                'Everything in Practice',
+                'Admin metrics',
+                'Role-based access',
+                'Supabase-backed auditability',
+                'Internal member management',
+                'SSO-ready architecture',
+                'Security review support',
+              ]}
+              cta={
+                <SoftButtonLink href="/admin" size="lg">
+                  Open admin route
+                </SoftButtonLink>
+              }
+            />
+          </>
+        }
+      />
+    </>
+  )
+}
+
+function CallToActionSection() {
+  return (
+    <>
+      {/* Call To Action */}
+      <CallToActionSimple
+        id="call-to-action"
+        headline="Ready to make care feel calmer between sessions?"
+        subheadline={
+          <p>
+            Open the Valence app to explore a private workspace for reflection, care plans, and session context.
+          </p>
+        }
+        cta={
+          <div className="flex items-center gap-4">
+            <ButtonLink href="/app" size="lg">
+              Open app route
+            </ButtonLink>
+
+            <PlainButtonLink href="/admin" size="lg">
+              Book a demo <ChevronIcon />
+            </PlainButtonLink>
           </div>
-        </div>
-      </footer>
-    </main>
-  );
+        }
+      />
+    </>
+  )
 }
