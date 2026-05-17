@@ -9,9 +9,9 @@ const normalizedAssetPrefix =
 const nextConfig: NextConfig = {
   assetPrefix: normalizedAssetPrefix,
   images: {
-    unoptimized: process.env.CAPACITOR_EXPORT === "true"
+    unoptimized: true
   },
-  output: process.env.CAPACITOR_EXPORT === "true" ? "export" : undefined
+  output: "export"
 };
 
 export default nextConfig;
