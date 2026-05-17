@@ -68,13 +68,14 @@ iqkwqjgvtzknyoldnrzj
      --project-ref iqkwqjgvtzknyoldnrzj
    ```
 
-5. List branches and copy the branch project ref:
+5. List branches and verify the branch project ref:
 
    ```bash
    supabase branches list --project-ref iqkwqjgvtzknyoldnrzj
    ```
 
-6. Add that ref to `supabase/config.toml` under `[remotes.development]`.
+6. Confirm that ref matches `[remotes.development]` in
+   `supabase/config.toml`.
 7. Configure GitHub secrets for the database workflow.
 8. Keep Vercel environment variables branch-specific:
    - Production Vercel env vars point at the production Supabase project.
@@ -103,9 +104,9 @@ SUPABASE_DEVELOPMENT_PROJECT_REF
 connection strings. Supabase publishable keys and secret API keys are not enough
 to run SQL migrations.
 
-The production project ref is committed because it is not a credential. The
-development project ref is stored as a secret because it does not exist until
-the persistent branch is created.
+The production and development project refs are committed because they are not
+credentials. The development project ref is also stored as a GitHub secret so
+the workflow can check whether development migrations are configured.
 
 The GitHub Actions workflow intentionally does not run `supabase config push`.
 For auth and service configuration, prefer Supabase Git-based Branching with
