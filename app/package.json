@@ -1,0 +1,39 @@
+{
+  "name": "@valence/app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --port 3001",
+    "build": "next build",
+    "build:mobile": "CAPACITOR_EXPORT=true NEXT_PUBLIC_APP_BASE_PATH= next build",
+    "start": "next start --port 3001",
+    "react-doctor": "react-doctor .",
+    "cap:sync": "bunx cap sync",
+    "cap:add:ios": "bunx cap add ios",
+    "cap:add:android": "bunx cap add android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.3.0",
+    "@capacitor/cli": "^8.3.0",
+    "@capacitor/core": "^8.3.0",
+    "@capacitor/ios": "^8.3.0",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@tailwindcss/postcss": "^4.2.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.8.0",
+    "next": "^16.2.2",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4.2.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "react-doctor": "0.1.6",
+    "typescript": "~6.0.2"
+  }
+}

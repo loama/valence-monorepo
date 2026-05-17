@@ -1,0 +1,63 @@
+name: React Doctor
+
+on:
+  pull_request:
+    branches:
+      - main
+      - development
+    paths:
+      - app/**
+      - website/**
+      - scripts/react-doctor-score.mjs
+      - package.json
+      - bun.lock
+      - .github/workflows/react-doctor.yml
+
+jobs:
+  score:
+    name: ${{ matrix.project }} score
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - app
+          - website
+
+    steps:
+      - name: Checkout pull request
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install pull request dependencies
+        working-directory: ${{ matrix.project }}
+        run: bun install --frozen-lockfile
+
+      - name: Score pull request
+        run: bun scripts/react-doctor-score.mjs "${{ matrix.project }}" > pr-score.txt
+
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+          path: target
+
+      - name: Install target dependencies
+        working-directory: target/${{ matrix.project }}
+        run: bun install --frozen-lockfile
+
+      - name: Score target branch
+        working-directory: target
+        run: bun scripts/react-doctor-score.mjs "${{ matrix.project }}" > ../target-score.txt
+
+      - name: Compare scores
+        run: |
+          pr_score="$(cat pr-score.txt)"
+          target_score="$(cat target-score.txt)"
+          echo "PR React Doctor score: ${pr_score}"
+          echo "Target React Doctor score: ${target_score}"
+          bun -e 'const current = Number(process.argv[2]); const target = Number(process.argv[3]); if (!Number.isFinite(current) || !Number.isFinite(target)) { console.error("Scores must be numeric."); process.exit(1); } if (current < target) { console.error(`React Doctor score regressed from ${target} to ${current}.`); process.exit(1); } console.log(`React Doctor score is ${current}, target is ${target}.`);' -- "${pr_score}" "${target_score}"

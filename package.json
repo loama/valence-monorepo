@@ -1,0 +1,27 @@
+{
+  "name": "valence-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "install:all": "bun run install:website && bun run install:app && bun run install:api",
+    "install:app": "bun install --cwd app",
+    "install:website": "bun install --cwd website",
+    "install:api": "bun install --cwd api",
+    "build": "bun run build:website && bun run build:app && bun run build:api",
+    "build:app": "bun run --cwd app build",
+    "build:website": "bun run --cwd website build",
+    "build:api": "bun run --cwd api build",
+    "dev:app": "bun run --cwd app dev",
+    "dev:website": "bun run --cwd website dev",
+    "dev:api": "bun run --cwd api dev",
+    "start": "bun run --cwd api start",
+    "react-doctor:app": "bun scripts/react-doctor-score.mjs app",
+    "react-doctor:website": "bun scripts/react-doctor-score.mjs website",
+    "heroku-postbuild": "bun run --cwd api build"
+  },
+  "engines": {
+    "bun": ">=1.3.0"
+  },
+  "packageManager": "bun@1.3.13"
+}
