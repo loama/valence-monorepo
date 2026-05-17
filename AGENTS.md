@@ -22,6 +22,7 @@ Branches:
 - Do not create or rely on root `node_modules`.
 - Never commit any `node_modules` directory.
 - Install all project dependencies with `bun run install:all`.
+- Exception: the root `heroku-postbuild` and `Procfile` must stay Node-compatible because Heroku's official Node buildpack does not provide Bun.
 
 Common commands:
 

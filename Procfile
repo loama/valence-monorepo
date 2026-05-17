@@ -1,1 +1,1 @@
-web: cd api && bun run start
+web: node api/dist/server.js

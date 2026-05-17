@@ -46,4 +46,4 @@ bun run react-doctor:website
 
 `vercel.json` maps `/app` to the `app` workspace and all other paths to the `website` workspace. The app workspace also sets `basePath` to `/app`, so generated URLs and assets stay under that route.
 
-Heroku starts the API with the root `Procfile`, which changes into `api` and runs `bun run start`. The `api/Procfile` is included for Heroku setups that deploy from the `api` directory directly.
+Heroku starts the API with the root `Procfile`. The official Heroku Node buildpack does not provide Bun, so the root Heroku build path compiles `api/src/server.ts` with `tsc` and starts `api/dist/server.js` with Node. Local development still uses Bun commands, and the `api/Procfile` is included for Heroku setups that deploy from the `api` directory directly.

@@ -15,13 +15,23 @@
     "dev:app": "bun run --cwd app dev",
     "dev:website": "bun run --cwd website dev",
     "dev:api": "bun run --cwd api dev",
-    "start": "bun run --cwd api start",
+    "start": "node api/dist/server.js",
     "react-doctor:app": "bun scripts/react-doctor-score.mjs app",
     "react-doctor:website": "bun scripts/react-doctor-score.mjs website",
-    "heroku-postbuild": "bun run --cwd api build"
+    "heroku-postbuild": "node scripts/heroku-build-api.mjs"
   },
   "engines": {
-    "bun": ">=1.3.0"
+    "node": "24.x"
   },
-  "packageManager": "bun@1.3.13"
+  "dependencies": {
+    "cors": "2.8.6",
+    "dotenv": "17.4.2",
+    "express": "5.2.1"
+  },
+  "devDependencies": {
+    "@types/cors": "2.8.19",
+    "@types/express": "5.0.6",
+    "@types/node": "24.12.4",
+    "typescript": "6.0.3"
+  }
 }
