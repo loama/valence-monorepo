@@ -62,7 +62,8 @@ jobs:
             echo "::error::Unable to read native iOS MARKETING_VERSION."
             exit 1
           fi
-          bundle_version="${native_version}.$(date -u +%Y%m%d%H%M%S)"
+          bundle_base="$(echo "$native_version" | awk -F. '{ print $1 "." $2 }')"
+          bundle_version="${bundle_base}.$(date -u +%Y%m%d%H%M%S)"
           bunx @capgo/cli@latest bundle upload com.valencedev.platform \
             --apikey "$CAPGO_TOKEN" \
             --path out \
