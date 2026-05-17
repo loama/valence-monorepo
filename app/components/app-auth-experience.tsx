@@ -565,7 +565,11 @@ function NativeUpdateDrawer({
   onApplyNextLaunch: () => void;
 }) {
   return (
-    <Drawer dismissible={false} open={Boolean(update.bundle)}>
+    <Drawer
+      dismissible={false}
+      open={Boolean(update.bundle)}
+      shouldScaleBackground={false}
+    >
       <DrawerContent className="mx-auto max-w-xl px-[env(safe-area-inset-left)]">
         <DrawerHeader className="text-left">
           <div className="flex items-start gap-3">
