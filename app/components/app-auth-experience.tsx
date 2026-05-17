@@ -45,10 +45,9 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 const appBasePath = process.env.NEXT_PUBLIC_APP_BASE_PATH ?? "/app";
-const webRedirectUrl =
-  process.env.NEXT_PUBLIC_APP_WEB_REDIRECT_URL ?? "https://valencedev.com/app";
 const nativeRedirectUrl =
-  process.env.NEXT_PUBLIC_APP_NATIVE_REDIRECT_URL ?? webRedirectUrl;
+  process.env.NEXT_PUBLIC_APP_NATIVE_REDIRECT_URL ??
+  "valence://auth/callback";
 
 const navItems = [
   { label: "Today", icon: CalendarCheck, active: true },

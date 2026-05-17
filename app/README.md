@@ -10,7 +10,7 @@ bun run --cwd app cap:sync:ios
 ```
 
 `build:mobile` intentionally uses the production Supabase project and
-`https://valencedev.com/app` as the native redirect URL. Local web development
+`valence://auth/callback` as the native redirect URL. Local web development
 continues to use `app/.env.local`.
 
 Supabase Auth URL configuration for the production project should allow:
@@ -18,5 +18,6 @@ Supabase Auth URL configuration for the production project should allow:
 - Site URL: `https://valencedev.com/app`
 - Redirect URL: `https://valencedev.com/app`
 - Redirect URL: `https://valencedev.com/app/**`
+- Redirect URL: `valence://auth/callback`
 - Redirect URL: `valence://**`
 - Redirect URL: `com.valencedev.platform://**`

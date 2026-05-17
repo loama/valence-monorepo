@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "next dev --webpack --port 3001",
     "build": "next build",
-    "build:mobile": "CAPACITOR_EXPORT=true NEXT_PUBLIC_APP_BASE_PATH= NEXT_PUBLIC_APP_WEB_REDIRECT_URL=https://valencedev.com/app NEXT_PUBLIC_APP_NATIVE_REDIRECT_URL=https://valencedev.com/app NEXT_PUBLIC_SUPABASE_URL=https://iqkwqjgvtzknyoldnrzj.supabase.co NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_N-PHdL_TMMUEd4yjwo4ajA_ZgB6bGY9 next build && cp out/app.html out/index.html",
+    "build:mobile": "CAPACITOR_EXPORT=true NEXT_PUBLIC_APP_BASE_PATH= NEXT_PUBLIC_APP_WEB_REDIRECT_URL=https://valencedev.com/app NEXT_PUBLIC_APP_NATIVE_REDIRECT_URL=valence://auth/callback NEXT_PUBLIC_SUPABASE_URL=https://iqkwqjgvtzknyoldnrzj.supabase.co NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_N-PHdL_TMMUEd4yjwo4ajA_ZgB6bGY9 next build && cp out/app.html out/index.html",
     "start": "next start --port 3001",
     "react-doctor": "react-doctor .",
     "cap:sync": "bunx cap sync",

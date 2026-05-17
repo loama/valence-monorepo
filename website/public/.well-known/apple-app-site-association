@@ -1,18 +1,10 @@
 {
   "applinks": {
+    "apps": [],
     "details": [
       {
-        "appIDs": ["VS97G4QRJF.com.valencedev.platform"],
-        "components": [
-          {
-            "/": "/app",
-            "comment": "Valence app auth callback and route"
-          },
-          {
-            "/": "/app/*",
-            "comment": "Valence app nested routes"
-          }
-        ]
+        "appID": "VS97G4QRJF.com.valencedev.platform",
+        "paths": ["/app", "/app/*"]
       }
     ]
   }

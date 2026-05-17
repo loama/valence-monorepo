@@ -7,6 +7,10 @@ project_id = "iqkwqjgvtzknyoldnrzj"
 site_url = "https://valencedev.com/admin"
 additional_redirect_urls = [
   "https://valencedev.com/app",
+  "https://valencedev.com/app/**",
+  "valence://auth/callback",
+  "valence://**",
+  "com.valencedev.platform://**",
   "https://valencedev.com/admin",
   "https://valencedev.com/admin/login",
   "https://valencedev.com/admin/auth/callback"
@@ -19,10 +23,14 @@ project_id = "zvoimvxsiukmcggvkfhq"
 site_url = "https://valencedev.com/admin"
 additional_redirect_urls = [
   "http://localhost:3005/app",
+  "valence://auth/callback",
+  "valence://**",
+  "com.valencedev.platform://**",
   "http://localhost:3005/admin",
   "http://localhost:3005/admin/login",
   "http://localhost:3005/admin/auth/callback",
   "https://valencedev.com/app",
+  "https://valencedev.com/app/**",
   "https://valencedev.com/admin",
   "https://valencedev.com/admin/login",
   "https://valencedev.com/admin/auth/callback"
@@ -62,6 +70,9 @@ enabled = true
 site_url = "http://localhost:3005/admin"
 additional_redirect_urls = [
   "http://localhost:3005/app",
+  "valence://auth/callback",
+  "valence://**",
+  "com.valencedev.platform://**",
   "http://localhost:3002/admin",
   "http://localhost:3002/admin/login",
   "http://localhost:3002/admin/auth/callback",
