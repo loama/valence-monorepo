@@ -9,6 +9,19 @@ const config: CapacitorConfig = {
   },
   ios: {
     scheme: "Valence"
+  },
+  plugins: {
+    CapacitorUpdater: {
+      appId: "com.valencedev.platform",
+      autoUpdate: true,
+      defaultChannel: "production",
+      directUpdate: false,
+      keepUrlPathAfterReload: true,
+      periodCheckDelay: 600
+    },
+    PushNotifications: {
+      presentationOptions: ["badge", "sound", "banner", "list"]
+    }
   }
 };
 
