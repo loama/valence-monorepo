@@ -4,14 +4,13 @@ import {
   useEffect,
   useMemo,
   useReducer,
-  useRef,
   useState,
   type Dispatch,
   type FormEvent,
   type ReactNode,
-  type SetStateAction,
-  type TouchEvent
+  type SetStateAction
 } from "react";
+import Link from "next/link";
 import { App } from "@capacitor/app";
 import { AppLauncher } from "@capacitor/app-launcher";
 import { Capacitor, type PluginListenerHandle } from "@capacitor/core";
@@ -27,18 +26,20 @@ import {
   CalendarCheck,
   CloudDownload,
   ClipboardList,
+  FileText,
   HeartPulse,
   LockKeyhole,
   LogOut,
   Mail,
-  Menu,
   MessageCircle,
   PanelLeftClose,
+  Send,
   ShieldCheck,
   Sparkles,
   UserRound,
-  X
+  type LucideIcon
 } from "lucide-react";
+import packageJson from "@/package.json";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -58,12 +59,50 @@ const nativeRedirectUrl =
   process.env.NEXT_PUBLIC_APP_NATIVE_REDIRECT_URL ??
   "valence://auth/callback";
 
-const navItems = [
-  { label: "Today", icon: CalendarCheck, active: true },
-  { label: "Care plan", icon: ClipboardList },
-  { label: "Messages", icon: MessageCircle },
-  { label: "Profile", icon: UserRound },
-  { label: "Privacy", icon: ShieldCheck }
+export type PageKey = "today" | "care-plan" | "messages" | "profile";
+
+type VersionState = {
+  capgoVersion: string;
+  installedVersion: string;
+};
+
+const installedVersion = packageJson.version;
+
+const navItems: Array<{
+  description: string;
+  href: string;
+  icon: LucideIcon;
+  label: string;
+  page: PageKey;
+}> = [
+  {
+    description: "Check-in and care context",
+    href: appBasePath,
+    icon: CalendarCheck,
+    label: "Today",
+    page: "today"
+  },
+  {
+    description: "Goals, tasks, and session prep",
+    href: `${appBasePath}/care-plan`,
+    icon: ClipboardList,
+    label: "Plan",
+    page: "care-plan"
+  },
+  {
+    description: "Care team conversations",
+    href: `${appBasePath}/messages`,
+    icon: MessageCircle,
+    label: "Messages",
+    page: "messages"
+  },
+  {
+    description: "Account, privacy, and app version",
+    href: `${appBasePath}/profile`,
+    icon: UserRound,
+    label: "Profile",
+    page: "profile"
+  }
 ];
 
 const checkInItems = [
@@ -316,6 +355,69 @@ function getRedirectTo() {
   return `${window.location.origin}${appBasePath}`;
 }
 
+function useAppVersions(): VersionState {
+  const [capgoVersion, setCapgoVersion] = useState(
+    Capacitor.isNativePlatform() ? "checking" : "web"
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!Capacitor.isNativePlatform()) {
+      setCapgoVersion("web");
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    void CapacitorUpdater.current()
+      .then((bundle) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setCapgoVersion(bundle.bundle.version ?? bundle.bundle.id ?? "builtin");
+      })
+      .catch(() => {
+        if (isMounted) {
+          setCapgoVersion("unknown");
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  return {
+    capgoVersion,
+    installedVersion
+  };
+}
+
+function VersionBadge({
+  className,
+  versions
+}: {
+  className?: string;
+  versions: VersionState;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-md border border-border bg-card/85 px-3 py-2 text-xs leading-5 text-muted-foreground shadow-sm backdrop-blur",
+        className
+      )}
+    >
+      <span className="font-medium text-foreground">Installed</span>{" "}
+      {versions.installedVersion}
+      <span className="mx-2 text-border">/</span>
+      <span className="font-medium text-foreground">Capgo</span>{" "}
+      {versions.capgoVersion}
+    </div>
+  );
+}
+
 function ProviderMark({ label }: { label: string }) {
   return (
     <span className="flex size-5 items-center justify-center rounded-sm border border-border bg-background text-xs font-semibold">
@@ -369,7 +471,7 @@ function NativeUpdateDrawer({
   );
 }
 
-function LoginScreen() {
+function LoginScreen({ versions }: { versions: VersionState }) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<string | null>(null);
@@ -435,7 +537,7 @@ function LoginScreen() {
 
   return (
     <main className="valence-auth-scene valence-safe-screen bg-background px-4 py-8 text-foreground sm:px-6 lg:px-8">
-      <section className="mx-auto flex min-h-[calc(100dvh-4rem)] max-w-md flex-col justify-center">
+      <section className="mx-auto flex min-h-[calc(100dvh-4rem)] max-w-md flex-col justify-center gap-4">
         <Card>
           <CardHeader>
             <div className="mb-2 flex size-10 items-center justify-center rounded-md bg-accent text-primary">
@@ -499,95 +601,27 @@ function LoginScreen() {
             </div>
           </CardContent>
         </Card>
+        <VersionBadge className="self-center" versions={versions} />
       </section>
     </main>
   );
 }
 
 function WorkspaceShell({
+  activePage,
   children,
   user,
+  versions,
   onSignOut
 }: {
+  activePage: PageKey;
   children: ReactNode;
   user: User;
+  versions: VersionState;
   onSignOut: () => void;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [dragX, setDragX] = useState<number | null>(null);
-  const dragXRef = useRef<number | null>(null);
-  const touchStartX = useRef<number | null>(null);
-  const touchStartY = useRef<number | null>(null);
-  const touchMode = useRef<"open" | "close" | null>(null);
   const email = user.email ?? "Member";
-  const drawerWidth = 288;
-
-  const currentX = dragX ?? (isOpen ? 0 : -drawerWidth);
-  const drawerProgress = Math.min(
-    1,
-    Math.max(0, (currentX + drawerWidth) / drawerWidth)
-  );
-
-  function clampDrawerX(value: number) {
-    return Math.min(0, Math.max(-drawerWidth, value));
-  }
-
-  function setDrawerX(value: number | null) {
-    dragXRef.current = value;
-    setDragX(value);
-  }
-
-  function handleSwipeStart(
-    event: TouchEvent<HTMLElement>,
-    mode: "open" | "close"
-  ) {
-    const touch = event.touches[0];
-
-    touchStartX.current = touch.clientX;
-    touchStartY.current = touch.clientY;
-    touchMode.current = mode;
-    setDrawerX(mode === "open" ? -drawerWidth : 0);
-  }
-
-  function handleSwipeMove(event: TouchEvent<HTMLElement>) {
-    if (
-      touchStartX.current === null ||
-      touchStartY.current === null ||
-      touchMode.current === null
-    ) {
-      return;
-    }
-
-    const touch = event.touches[0];
-    const deltaX = touch.clientX - touchStartX.current;
-    const deltaY = Math.abs(touch.clientY - touchStartY.current);
-
-    if (Math.abs(deltaX) < deltaY && deltaY > 8) {
-      resetSwipe();
-      return;
-    }
-
-    event.preventDefault();
-    setDrawerX(
-      touchMode.current === "open"
-        ? clampDrawerX(-drawerWidth + Math.max(0, deltaX))
-        : clampDrawerX(Math.min(0, deltaX))
-    );
-  }
-
-  function finishSwipe() {
-    const releasedX = dragXRef.current ?? (isOpen ? 0 : -drawerWidth);
-
-    setIsOpen(releasedX > -drawerWidth / 2);
-    resetSwipe();
-  }
-
-  function resetSwipe() {
-    touchStartX.current = null;
-    touchStartY.current = null;
-    touchMode.current = null;
-    setDrawerX(null);
-  }
+  const activeNav = navItems.find((item) => item.page === activePage);
 
   const aside = (
     <aside className="flex h-full w-72 flex-col border-r border-border bg-card">
@@ -596,40 +630,31 @@ function WorkspaceShell({
           <p className="text-sm font-semibold">Valence</p>
           <p className="text-xs text-muted-foreground">Member workspace</p>
         </div>
-        <Button
-          className="lg:hidden"
-          onClick={() => setIsOpen(false)}
-          size="icon"
-          type="button"
-          variant="ghost"
-        >
-          <X className="size-4" />
-          <span className="sr-only">Close navigation</span>
-        </Button>
       </div>
       <nav className="flex flex-1 flex-col gap-1 p-3">
         {navItems.map((item) => {
           const Icon = item.icon;
+          const isActive = item.page === activePage;
 
           return (
-            <button
+            <Link
               className={cn(
                 "flex h-10 items-center gap-3 rounded-md px-3 text-left text-sm font-medium transition-colors",
-                item.active
+                isActive
                   ? "bg-accent text-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
+              href={item.href}
               key={item.label}
-              onClick={() => setIsOpen(false)}
-              type="button"
             >
               <Icon className="size-4" />
               {item.label}
-            </button>
+            </Link>
           );
         })}
       </nav>
       <div className="border-t border-border p-4">
+        <VersionBadge className="mb-3 bg-background" versions={versions} />
         <p className="truncate text-sm font-medium">{email}</p>
         <Button
           className="mt-3 w-full justify-start"
@@ -645,78 +670,52 @@ function WorkspaceShell({
   );
 
   return (
-    <div className="valence-auth-scene valence-safe-screen bg-background text-foreground lg:grid lg:grid-cols-[18rem_1fr]">
+    <div className="valence-auth-scene min-h-dvh bg-background pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] text-foreground lg:grid lg:grid-cols-[18rem_1fr]">
       <div className="hidden lg:block">{aside}</div>
 
-      <div
-        className={cn(
-          "valence-safe-fixed fixed z-40 lg:hidden",
-          isOpen || dragX !== null ? "pointer-events-auto" : "pointer-events-none"
-        )}
-        data-state={isOpen ? "open" : "closed"}
-      >
-        <button
-          aria-label="Close navigation"
-          className={cn(
-            "absolute inset-0 bg-foreground/35 backdrop-blur-[2px] ease-out",
-            dragX === null && "transition-opacity duration-300"
-          )}
-          onClick={() => setIsOpen(false)}
-          style={{ opacity: drawerProgress }}
-          type="button"
-        />
-        <div
-          className={cn(
-            "absolute inset-y-0 left-0 transform-gpu shadow-2xl ease-[cubic-bezier(0.22,1,0.36,1)]",
-            dragX === null && "transition-transform duration-300"
-          )}
-          data-testid="mobile-nav-drawer"
-          onTouchCancel={resetSwipe}
-          onTouchEnd={finishSwipe}
-          onTouchMove={handleSwipeMove}
-          onTouchStart={(event) => handleSwipeStart(event, "close")}
-          style={{
-            transform: `translate3d(${currentX}px, 0, 0)`,
-            touchAction: "pan-y"
-          }}
-        >
-          {aside}
-        </div>
-      </div>
-
-      <div
-        aria-hidden="true"
-        className="fixed bottom-[env(safe-area-inset-bottom)] left-[env(safe-area-inset-left)] top-[env(safe-area-inset-top)] z-30 w-7 lg:hidden"
-        data-testid="mobile-nav-edge-swipe"
-        onTouchCancel={resetSwipe}
-        onTouchEnd={finishSwipe}
-        onTouchMove={handleSwipeMove}
-        onTouchStart={(event) => handleSwipeStart(event, "open")}
-        style={{ touchAction: "pan-y" }}
-      />
-
       <main className="min-w-0">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur sm:px-6 lg:px-8">
-          <Button
-            className="lg:hidden"
-            onClick={() => setIsOpen(true)}
-            size="icon"
-            type="button"
-            variant="outline"
-          >
-            <Menu className="size-4" />
-            <span className="sr-only">Open navigation</span>
-          </Button>
+        <header className="sticky top-0 z-30 flex min-h-[calc(4rem+env(safe-area-inset-top))] items-end gap-3 border-b border-border bg-background/95 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] backdrop-blur sm:px-6 lg:min-h-16 lg:px-8 lg:pt-0">
           <PanelLeftClose className="hidden size-4 text-muted-foreground lg:block" />
           <div>
-            <p className="text-sm font-medium">Today</p>
+            <p className="text-sm font-medium">{activeNav?.label ?? "Today"}</p>
             <p className="text-xs text-muted-foreground">
-              Check-in, plan, and privacy context
+              {activeNav?.description ?? "Check-in and care context"}
             </p>
           </div>
         </header>
-        {children}
+        <div className="pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
+          {children}
+        </div>
       </main>
+
+      <nav
+        aria-label="Primary"
+        className="fixed inset-x-0 bottom-0 z-40 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden"
+      >
+        <div className="mx-auto grid max-w-md grid-cols-4 gap-1 rounded-lg border border-border bg-card/95 p-1.5 shadow-2xl backdrop-blur">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = item.page === activePage;
+
+            return (
+              <Link
+                aria-current={isActive ? "page" : undefined}
+                className={cn(
+                  "flex min-h-14 flex-col items-center justify-center gap-1 rounded-md px-1 text-[0.68rem] font-medium leading-none transition-all duration-200 active:scale-[0.98]",
+                  isActive
+                    ? "bg-accent text-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+                href={item.href}
+                key={item.page}
+              >
+                <Icon className="size-4" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }
@@ -824,8 +823,243 @@ function MemberDashboard({
   );
 }
 
-export function AppAuthExperience() {
+function CarePlanPage() {
+  const goals = [
+    {
+      title: "Steady morning check-ins",
+      detail: "Capture the first mood signal before calendar pressure builds.",
+      meta: "5 minute rhythm"
+    },
+    {
+      title: "Session prep",
+      detail: "Keep notes, consent context, and care themes ready for review.",
+      meta: "Next session"
+    },
+    {
+      title: "Privacy defaults",
+      detail: "Share only the pieces your care team needs for the next step.",
+      meta: "Private by default"
+    }
+  ];
+
+  return (
+    <section className="mx-auto flex max-w-6xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
+      <Card>
+        <CardHeader>
+          <CardTitle>Care plan</CardTitle>
+          <CardDescription>
+            A calm view of goals, tasks, and care context.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-3">
+          {goals.map((goal) => (
+            <div
+              className="flex min-h-44 flex-col justify-between rounded-md border border-border bg-background p-4"
+              key={goal.title}
+            >
+              <div>
+                <p className="text-sm font-semibold">{goal.title}</p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {goal.detail}
+                </p>
+              </div>
+              <p className="mt-5 text-xs font-medium text-primary">
+                {goal.meta}
+              </p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Session notes</CardTitle>
+          <CardDescription>
+            Draft structure for the clinical workflows coming next.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-md bg-muted p-4 text-sm leading-6">
+            <FileText className="mb-3 size-5 text-primary" />
+            Reflect on what felt regulated, what felt strained, and what
+            support would help this week.
+          </div>
+          <div className="rounded-md bg-muted p-4 text-sm leading-6">
+            <ShieldCheck className="mb-3 size-5 text-primary" />
+            Consent and sharing preferences stay attached to every care note.
+          </div>
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
+function MessagesPage() {
+  return (
+    <section className="mx-auto flex max-w-6xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
+      <Card>
+        <CardHeader>
+          <CardTitle>Messages</CardTitle>
+          <CardDescription>
+            A private inbox for care team conversations.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          {[
+            "Your clinician shared a prep note for your next session.",
+            "A care coordinator will confirm availability once scheduling is live.",
+            "System reminders will appear here after notification rules are active."
+          ].map((message, index) => (
+            <div
+              className="flex items-start gap-3 rounded-md border border-border bg-background p-4"
+              key={message}
+            >
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-accent text-primary">
+                {index === 0 ? (
+                  <MessageCircle className="size-4" />
+                ) : (
+                  <Send className="size-4" />
+                )}
+              </span>
+              <p className="text-sm leading-6 text-muted-foreground">
+                {message}
+              </p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
+function ProfilePage({
+  user,
+  versions,
+  onSignOut
+}: {
+  user: User;
+  versions: VersionState;
+  onSignOut: () => void;
+}) {
+  return (
+    <section className="mx-auto flex max-w-6xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
+      <div className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
+        <Card>
+          <CardHeader>
+            <div className="mb-2 flex size-11 items-center justify-center rounded-md bg-accent text-primary">
+              <UserRound className="size-5" />
+            </div>
+            <CardTitle>Profile</CardTitle>
+            <CardDescription>
+              Signed in as {user.email ?? "your Valence account"}.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              className="w-full justify-start"
+              onClick={onSignOut}
+              type="button"
+              variant="outline"
+            >
+              <LogOut data-icon="inline-start" />
+              Sign out
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>App version</CardTitle>
+            <CardDescription>
+              Use these values when confirming which native shell and live
+              update are running.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-md border border-border bg-background p-4">
+              <p className="text-xs font-medium text-muted-foreground">
+                Installed
+              </p>
+              <p className="mt-2 font-mono text-lg tabular-nums">
+                {versions.installedVersion}
+              </p>
+            </div>
+            <div className="rounded-md border border-border bg-background p-4">
+              <p className="text-xs font-medium text-muted-foreground">
+                Capgo
+              </p>
+              <p className="mt-2 font-mono text-lg tabular-nums">
+                {versions.capgoVersion}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Privacy</CardTitle>
+          <CardDescription>
+            Account controls are private by default while settings are built.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-md bg-muted p-4 text-sm leading-6">
+            Only explicitly shared care context should leave the member
+            workspace.
+          </div>
+          <div className="rounded-md bg-muted p-4 text-sm leading-6">
+            Admin visibility and audit trails will be governed from the
+            platform API.
+          </div>
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
+function ActivePage({
+  page,
+  pushRegistration,
+  user,
+  versions,
+  onEnablePushNotifications,
+  onSignOut
+}: {
+  page: PageKey;
+  pushRegistration: PushRegistrationState;
+  user: User;
+  versions: VersionState;
+  onEnablePushNotifications: () => void;
+  onSignOut: () => void;
+}) {
+  switch (page) {
+    case "care-plan":
+      return <CarePlanPage />;
+    case "messages":
+      return <MessagesPage />;
+    case "profile":
+      return (
+        <ProfilePage
+          onSignOut={onSignOut}
+          user={user}
+          versions={versions}
+        />
+      );
+    case "today":
+      return (
+        <MemberDashboard
+          onEnablePushNotifications={onEnablePushNotifications}
+          pushRegistration={pushRegistration}
+          user={user}
+        />
+      );
+  }
+}
+
+export function AppAuthExperience({ page = "today" }: { page?: PageKey }) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const versions = useAppVersions();
   const [authState, dispatchAuth] = useReducer(authReducer, {
     isLoading: true,
     user: null
@@ -1022,15 +1256,23 @@ export function AppAuthExperience() {
   }
 
   if (!authState.user) {
-    return <LoginScreen />;
+    return <LoginScreen versions={versions} />;
   }
 
   return (
-    <WorkspaceShell onSignOut={() => void signOut()} user={authState.user}>
-      <MemberDashboard
+    <WorkspaceShell
+      activePage={page}
+      onSignOut={() => void signOut()}
+      user={authState.user}
+      versions={versions}
+    >
+      <ActivePage
         onEnablePushNotifications={() => void enablePushNotifications()}
+        onSignOut={() => void signOut()}
+        page={page}
         pushRegistration={pushRegistration}
         user={authState.user}
+        versions={versions}
       />
       <NativeUpdateDrawer
         onApplyNextLaunch={() => void applyNativeUpdateOnNextLaunch()}
