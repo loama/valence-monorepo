@@ -1,16 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7f4ee;
-  --foreground: #1e2930;
-  --card: #ffffff;
-  --card-foreground: #1e2930;
-  --primary: #2f6f73;
+  --background: #f8f6f1;
+  --foreground: #17211f;
+  --card: #fffdfa;
+  --card-foreground: #17211f;
+  --primary: #28645f;
   --primary-foreground: #ffffff;
-  --muted: #e8e1d5;
-  --muted-foreground: #66757a;
-  --border: #d6cfc3;
-  --ring: #2f6f73;
+  --secondary: #ebe5dc;
+  --secondary-foreground: #17211f;
+  --muted: #ece7df;
+  --muted-foreground: #66716e;
+  --accent: #e5eeeb;
+  --accent-foreground: #17211f;
+  --border: #d8d0c4;
+  --ring: #28645f;
   --radius: 0.5rem;
 }
 
@@ -21,12 +25,16 @@
   --color-card-foreground: var(--card-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
   --color-border: var(--border);
   --color-ring: var(--ring);
   --font-sans: var(--font-valence-sans);
-  --font-serif: var(--font-valence-serif);
+  --font-mono: var(--font-valence-mono);
   --radius-md: var(--radius);
 }
 
@@ -34,16 +42,45 @@
   box-sizing: border-box;
 }
 
+html {
+  min-height: 100%;
+  background: var(--background);
+  scroll-behavior: smooth;
+}
+
 body {
-  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-valence-sans), system-ui, sans-serif;
+  font-feature-settings:
+    "cv02",
+    "cv03",
+    "cv04",
+    "cv11";
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 h1,
 h2,
 h3 {
-  font-family: var(--font-valence-serif), Georgia, serif;
+  font-family: var(--font-valence-sans), system-ui, sans-serif;
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+button:not(:disabled),
+[role="button"]:not(:disabled) {
+  cursor: pointer;
+}
+
+::selection {
+  background: var(--primary);
+  color: var(--primary-foreground);
 }

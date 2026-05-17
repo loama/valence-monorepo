@@ -1,22 +1,22 @@
 import type { Metadata } from "next";
-import { Newsreader, Source_Sans_3 } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const sourceSans = Source_Sans_3({
+const geistSans = Geist({
   subsets: ["latin"],
   variable: "--font-valence-sans",
   display: "swap"
 });
 
-const newsreader = Newsreader({
+const geistMono = Geist_Mono({
   subsets: ["latin"],
-  variable: "--font-valence-serif",
+  variable: "--font-valence-mono",
   display: "swap"
 });
 
 export const metadata: Metadata = {
-  title: "Valence App",
-  description: "The Valence psychology platform app"
+  title: "Valence App | Product shell",
+  description: "The authenticated Valence psychology platform app"
 };
 
 export default function RootLayout({
@@ -26,7 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${sourceSans.variable} ${newsreader.variable}`}>
+      <body className={`${geistSans.variable} ${geistMono.variable}`}>
         {children}
       </body>
     </html>
