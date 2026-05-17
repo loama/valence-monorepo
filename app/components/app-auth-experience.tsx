@@ -253,20 +253,47 @@ function WorkspaceShell({
   onSignOut: () => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [dragX, setDragX] = useState<number | null>(null);
+  const dragXRef = useRef<number | null>(null);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
+  const touchMode = useRef<"open" | "close" | null>(null);
   const email = user.email ?? "Member";
-  const swipeThreshold = 56;
+  const drawerWidth = 288;
 
-  function handleSwipeStart(event: TouchEvent<HTMLElement>) {
+  const currentX = dragX ?? (isOpen ? 0 : -drawerWidth);
+  const drawerProgress = Math.min(
+    1,
+    Math.max(0, (currentX + drawerWidth) / drawerWidth)
+  );
+
+  function clampDrawerX(value: number) {
+    return Math.min(0, Math.max(-drawerWidth, value));
+  }
+
+  function setDrawerX(value: number | null) {
+    dragXRef.current = value;
+    setDragX(value);
+  }
+
+  function handleSwipeStart(
+    event: TouchEvent<HTMLElement>,
+    mode: "open" | "close"
+  ) {
     const touch = event.touches[0];
 
     touchStartX.current = touch.clientX;
     touchStartY.current = touch.clientY;
+    touchMode.current = mode;
+    setDrawerX(mode === "open" ? -drawerWidth : 0);
   }
 
-  function handleOpenSwipeMove(event: TouchEvent<HTMLElement>) {
-    if (touchStartX.current === null || touchStartY.current === null) {
+  function handleSwipeMove(event: TouchEvent<HTMLElement>) {
+    if (
+      touchStartX.current === null ||
+      touchStartY.current === null ||
+      touchMode.current === null
+    ) {
       return;
     }
 
@@ -274,32 +301,31 @@ function WorkspaceShell({
     const deltaX = touch.clientX - touchStartX.current;
     const deltaY = Math.abs(touch.clientY - touchStartY.current);
 
-    if (deltaX > swipeThreshold && deltaX > deltaY * 1.4) {
-      setIsOpen(true);
-      touchStartX.current = null;
-      touchStartY.current = null;
-    }
-  }
-
-  function handleCloseSwipeMove(event: TouchEvent<HTMLElement>) {
-    if (touchStartX.current === null || touchStartY.current === null) {
+    if (Math.abs(deltaX) < deltaY && deltaY > 8) {
+      resetSwipe();
       return;
     }
 
-    const touch = event.touches[0];
-    const deltaX = touch.clientX - touchStartX.current;
-    const deltaY = Math.abs(touch.clientY - touchStartY.current);
+    event.preventDefault();
+    setDrawerX(
+      touchMode.current === "open"
+        ? clampDrawerX(-drawerWidth + Math.max(0, deltaX))
+        : clampDrawerX(Math.min(0, deltaX))
+    );
+  }
 
-    if (deltaX < -swipeThreshold && Math.abs(deltaX) > deltaY * 1.4) {
-      setIsOpen(false);
-      touchStartX.current = null;
-      touchStartY.current = null;
-    }
+  function finishSwipe() {
+    const releasedX = dragXRef.current ?? (isOpen ? 0 : -drawerWidth);
+
+    setIsOpen(releasedX > -drawerWidth / 2);
+    resetSwipe();
   }
 
   function resetSwipe() {
     touchStartX.current = null;
     touchStartY.current = null;
+    touchMode.current = null;
+    setDrawerX(null);
   }
 
   const aside = (
@@ -364,29 +390,34 @@ function WorkspaceShell({
       <div
         className={cn(
           "fixed inset-0 z-40 lg:hidden",
-          isOpen ? "pointer-events-auto" : "pointer-events-none"
+          isOpen || dragX !== null ? "pointer-events-auto" : "pointer-events-none"
         )}
         data-state={isOpen ? "open" : "closed"}
       >
         <button
           aria-label="Close navigation"
           className={cn(
-            "absolute inset-0 bg-foreground/35 opacity-0 backdrop-blur-[2px] transition-opacity duration-300 ease-out",
-            isOpen && "opacity-100"
+            "absolute inset-0 bg-foreground/35 backdrop-blur-[2px] ease-out",
+            dragX === null && "transition-opacity duration-300"
           )}
           onClick={() => setIsOpen(false)}
+          style={{ opacity: drawerProgress }}
           type="button"
         />
         <div
           className={cn(
-            "absolute inset-y-0 left-0 transform-gpu shadow-2xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
-            isOpen ? "translate-x-0" : "-translate-x-[105%]"
+            "absolute inset-y-0 left-0 transform-gpu shadow-2xl ease-[cubic-bezier(0.22,1,0.36,1)]",
+            dragX === null && "transition-transform duration-300"
           )}
           data-testid="mobile-nav-drawer"
           onTouchCancel={resetSwipe}
-          onTouchEnd={resetSwipe}
-          onTouchMove={handleCloseSwipeMove}
-          onTouchStart={handleSwipeStart}
+          onTouchEnd={finishSwipe}
+          onTouchMove={handleSwipeMove}
+          onTouchStart={(event) => handleSwipeStart(event, "close")}
+          style={{
+            transform: `translate3d(${currentX}px, 0, 0)`,
+            touchAction: "pan-y"
+          }}
         >
           {aside}
         </div>
@@ -397,9 +428,10 @@ function WorkspaceShell({
         className="fixed inset-y-0 left-0 z-30 w-7 lg:hidden"
         data-testid="mobile-nav-edge-swipe"
         onTouchCancel={resetSwipe}
-        onTouchEnd={resetSwipe}
-        onTouchMove={handleOpenSwipeMove}
-        onTouchStart={handleSwipeStart}
+        onTouchEnd={finishSwipe}
+        onTouchMove={handleSwipeMove}
+        onTouchStart={(event) => handleSwipeStart(event, "open")}
+        style={{ touchAction: "pan-y" }}
       />
 
       <main className="min-w-0">
