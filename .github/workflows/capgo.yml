@@ -52,7 +52,17 @@ jobs:
       - name: Upload production bundle to Capgo
         working-directory: app
         run: |
-          bundle_version="0.1.$(date -u +%Y%m%d%H%M%S)"
+          native_version="$(
+            sed -n 's/.*MARKETING_VERSION = \([^;]*\);/\1/p' \
+              ios/App/App.xcodeproj/project.pbxproj |
+              head -n 1 |
+              tr -d '[:space:]'
+          )"
+          if [ -z "$native_version" ]; then
+            echo "::error::Unable to read native iOS MARKETING_VERSION."
+            exit 1
+          fi
+          bundle_version="${native_version}.$(date -u +%Y%m%d%H%M%S)"
           bunx @capgo/cli@latest bundle upload com.valencedev.platform \
             --apikey "$CAPGO_TOKEN" \
             --path out \

@@ -356,15 +356,19 @@ function getRedirectTo() {
 }
 
 function useAppVersions(): VersionState {
-  const [capgoVersion, setCapgoVersion] = useState(
-    Capacitor.isNativePlatform() ? "checking" : "web"
-  );
+  const [versions, setVersions] = useState<VersionState>({
+    capgoVersion: Capacitor.isNativePlatform() ? "checking" : "web",
+    installedVersion
+  });
 
   useEffect(() => {
     let isMounted = true;
 
     if (!Capacitor.isNativePlatform()) {
-      setCapgoVersion("web");
+      setVersions({
+        capgoVersion: "web",
+        installedVersion
+      });
       return () => {
         isMounted = false;
       };
@@ -376,11 +380,18 @@ function useAppVersions(): VersionState {
           return;
         }
 
-        setCapgoVersion(bundle.bundle.version ?? bundle.bundle.id ?? "builtin");
+        setVersions({
+          capgoVersion:
+            bundle.bundle.version ?? bundle.bundle.id ?? "builtin",
+          installedVersion: bundle.native || installedVersion
+        });
       })
       .catch(() => {
         if (isMounted) {
-          setCapgoVersion("unknown");
+          setVersions({
+            capgoVersion: "unknown",
+            installedVersion
+          });
         }
       });
 
@@ -389,10 +400,7 @@ function useAppVersions(): VersionState {
     };
   }, []);
 
-  return {
-    capgoVersion,
-    installedVersion
-  };
+  return versions;
 }
 
 function VersionBadge({
