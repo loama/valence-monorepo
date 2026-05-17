@@ -137,7 +137,7 @@ async function proxyRequest(request) {
   headers.set("x-forwarded-host", `localhost:${routerPort}`);
   headers.set("x-forwarded-proto", "http");
 
-  return fetch(targetUrl, {
+  const upstreamResponse = await fetch(targetUrl, {
     method: request.method,
     headers,
     body:
@@ -145,6 +145,20 @@ async function proxyRequest(request) {
         ? undefined
         : request.body,
     redirect: "manual"
+  });
+
+  const responseHeaders = new Headers(upstreamResponse.headers);
+
+  responseHeaders.delete("connection");
+  responseHeaders.delete("content-encoding");
+  responseHeaders.delete("content-length");
+  responseHeaders.delete("keep-alive");
+  responseHeaders.delete("transfer-encoding");
+
+  return new Response(upstreamResponse.body, {
+    headers: responseHeaders,
+    status: upstreamResponse.status,
+    statusText: upstreamResponse.statusText
   });
 }
 
