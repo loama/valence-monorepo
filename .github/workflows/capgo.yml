@@ -71,5 +71,4 @@ jobs:
             --bundle "$bundle_version" \
             --comment "$GITHUB_SHA" \
             --key-data-v2 "$CAPGO_PRIVATE_KEY" \
-            --delta \
             --version-exists-ok

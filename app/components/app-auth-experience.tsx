@@ -328,15 +328,6 @@ function bindNativeUpdateLifecycle(
   );
 
   bindListener(
-    CapacitorUpdater.addListener("downloadComplete", ({ bundle }) => {
-      void scheduleNativeUpdateForNextLaunch(bundle);
-      dispatch({ bundle, type: "downloaded" });
-    }),
-    handles,
-    () => isActive
-  );
-
-  bindListener(
     CapacitorUpdater.addListener("downloadFailed", ({ version }) => {
       dispatch({
         message: `Update ${version} could not be downloaded.`,
