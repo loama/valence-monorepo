@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { createServer } from "node:net";
 
 const routerPort = Number(process.env.VALENCE_DEV_PORT ?? 3005);
 const upstreams = {
@@ -18,6 +19,52 @@ const upstreams = {
 
 const children = [];
 const ready = new Set();
+let routerServer;
+let shuttingDown = false;
+
+function canListen(port) {
+  return new Promise((resolve) => {
+    const server = createServer();
+
+    server.once("error", () => {
+      resolve(false);
+    });
+
+    server.once("listening", () => {
+      server.close(() => {
+        resolve(true);
+      });
+    });
+
+    server.listen(port);
+  });
+}
+
+async function assertPortsAvailable() {
+  const requiredPorts = [
+    ["router", routerPort],
+    ...Object.entries(upstreams).map(([name, upstream]) => [
+      name,
+      upstream.port
+    ])
+  ];
+
+  const busyPorts = [];
+
+  for (const [name, port] of requiredPorts) {
+    if (!(await canListen(port))) {
+      busyPorts.push(`${name} :${port}`);
+    }
+  }
+
+  if (busyPorts.length > 0) {
+    console.error(
+      `[router] ports already in use: ${busyPorts.join(", ")}. ` +
+        "Stop the existing dev server or change VALENCE_DEV_PORT."
+    );
+    process.exit(1);
+  }
+}
 
 function prefixLines(name, stream) {
   let buffer = "";
@@ -102,34 +149,50 @@ async function proxyRequest(request) {
 }
 
 function shutdown(code = 0) {
+  if (shuttingDown) {
+    return;
+  }
+
+  shuttingDown = true;
+
   for (const child of children) {
     if (!child.killed) {
       child.kill("SIGTERM");
     }
   }
 
+  routerServer?.stop(true);
   process.exit(code);
+}
+
+await assertPortsAvailable();
+
+try {
+  routerServer = Bun.serve({
+    port: routerPort,
+    idleTimeout: 120,
+    async fetch(request) {
+      try {
+        return await proxyRequest(request);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+
+        return new Response(`Valence dev router upstream failed: ${message}`, {
+          status: 502
+        });
+      }
+    }
+  });
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+
+  console.error(`[router] failed to start on :${routerPort}: ${message}`);
+  process.exit(1);
 }
 
 for (const name of Object.keys(upstreams)) {
   startWorkspace(name);
 }
-
-Bun.serve({
-  port: routerPort,
-  idleTimeout: 120,
-  async fetch(request) {
-    try {
-      return await proxyRequest(request);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-
-      return new Response(`Valence dev router upstream failed: ${message}`, {
-        status: 502
-      });
-    }
-  }
-});
 
 console.log(`[router] http://localhost:${routerPort}`);
 console.log(`[router] routes: / -> website, /app -> app, /admin -> admin`);
