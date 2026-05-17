@@ -6,17 +6,26 @@ import {
   useReducer,
   useRef,
   useState,
+  type Dispatch,
   type FormEvent,
   type ReactNode,
+  type SetStateAction,
   type TouchEvent
 } from "react";
 import { App } from "@capacitor/app";
 import { AppLauncher } from "@capacitor/app-launcher";
-import { Capacitor } from "@capacitor/core";
+import { Capacitor, type PluginListenerHandle } from "@capacitor/core";
+import { PushNotifications } from "@capacitor/push-notifications";
+import {
+  CapacitorUpdater,
+  type BundleInfo
+} from "@capgo/capacitor-updater";
 import type { Provider, User } from "@supabase/supabase-js";
 import {
   Activity,
+  Bell,
   CalendarCheck,
+  CloudDownload,
   ClipboardList,
   HeartPulse,
   LockKeyhole,
@@ -90,6 +99,35 @@ type AuthAction =
       user: User | null;
     };
 
+type PushRegistrationState = {
+  error: string | null;
+  status: "idle" | "unsupported" | "prompt" | "registered" | "denied" | "error";
+  token: string | null;
+};
+
+type NativeUpdateState = {
+  bundle: BundleInfo | null;
+  error: string | null;
+  percent: number | null;
+};
+
+type NativeUpdateAction =
+  | {
+      type: "download-progress";
+      percent: number;
+    }
+  | {
+      type: "downloaded";
+      bundle: BundleInfo;
+    }
+  | {
+      type: "failed";
+      message: string;
+    }
+  | {
+      type: "dismiss";
+    };
+
 function authReducer(_state: AuthState, action: AuthAction): AuthState {
   switch (action.type) {
     case "loaded":
@@ -103,6 +141,167 @@ function authReducer(_state: AuthState, action: AuthAction): AuthState {
         user: action.user
       };
   }
+}
+
+function nativeUpdateReducer(
+  state: NativeUpdateState,
+  action: NativeUpdateAction
+): NativeUpdateState {
+  switch (action.type) {
+    case "download-progress":
+      return {
+        ...state,
+        error: null,
+        percent: action.percent
+      };
+    case "downloaded":
+      return {
+        bundle: action.bundle,
+        error: null,
+        percent: 100
+      };
+    case "failed":
+      return {
+        bundle: null,
+        error: action.message,
+        percent: null
+      };
+    case "dismiss":
+      return {
+        bundle: null,
+        error: null,
+        percent: null
+      };
+  }
+}
+
+function bindListener(
+  listenerPromise: Promise<PluginListenerHandle>,
+  handles: PluginListenerHandle[],
+  isActive: () => boolean
+) {
+  void listenerPromise.then((handle) => {
+    if (isActive()) {
+      handles.push(handle);
+      return;
+    }
+
+    void handle.remove();
+  });
+}
+
+function bindNativeUpdateLifecycle(
+  dispatch: Dispatch<NativeUpdateAction>
+): () => void {
+  let isActive = true;
+  const handles: PluginListenerHandle[] = [];
+
+  void CapacitorUpdater.notifyAppReady();
+
+  void CapacitorUpdater.getNextBundle().then((bundle) => {
+    if (bundle && isActive) {
+      dispatch({ bundle, type: "downloaded" });
+    }
+  });
+
+  bindListener(
+    CapacitorUpdater.addListener("download", ({ percent }) => {
+      dispatch({ percent, type: "download-progress" });
+    }),
+    handles,
+    () => isActive
+  );
+
+  bindListener(
+    CapacitorUpdater.addListener("downloadComplete", ({ bundle }) => {
+      void CapacitorUpdater.next({ id: bundle.id });
+      dispatch({ bundle, type: "downloaded" });
+    }),
+    handles,
+    () => isActive
+  );
+
+  bindListener(
+    CapacitorUpdater.addListener("downloadFailed", ({ version }) => {
+      dispatch({
+        message: `Update ${version} could not be downloaded.`,
+        type: "failed"
+      });
+    }),
+    handles,
+    () => isActive
+  );
+
+  bindListener(
+    CapacitorUpdater.addListener("updateFailed", ({ bundle }) => {
+      dispatch({
+        message: `Update ${bundle.version} could not be applied.`,
+        type: "failed"
+      });
+    }),
+    handles,
+    () => isActive
+  );
+
+  return () => {
+    isActive = false;
+    for (const handle of handles) {
+      void handle.remove();
+    }
+  };
+}
+
+function bindPushNotificationLifecycle(
+  setPushRegistration: Dispatch<SetStateAction<PushRegistrationState>>
+): () => void {
+  let isActive = true;
+  const handles: PluginListenerHandle[] = [];
+
+  bindListener(
+    PushNotifications.addListener("registration", (token) => {
+      setPushRegistration({
+        error: null,
+        status: "registered",
+        token: token.value
+      });
+    }),
+    handles,
+    () => isActive
+  );
+
+  bindListener(
+    PushNotifications.addListener("registrationError", (error) => {
+      setPushRegistration({
+        error: error.error,
+        status: "error",
+        token: null
+      });
+    }),
+    handles,
+    () => isActive
+  );
+
+  bindListener(
+    PushNotifications.addListener(
+      "pushNotificationActionPerformed",
+      ({ notification }) => {
+        const url = notification.data?.url;
+
+        if (typeof url === "string" && url.startsWith("/")) {
+          window.location.assign(url);
+        }
+      }
+    ),
+    handles,
+    () => isActive
+  );
+
+  return () => {
+    isActive = false;
+    for (const handle of handles) {
+      void handle.remove();
+    }
+  };
 }
 
 function getRedirectTo() {
@@ -122,6 +321,51 @@ function ProviderMark({ label }: { label: string }) {
     <span className="flex size-5 items-center justify-center rounded-sm border border-border bg-background text-xs font-semibold">
       {label}
     </span>
+  );
+}
+
+function NativeUpdateDrawer({
+  update,
+  onApplyNow,
+  onApplyNextLaunch
+}: {
+  update: NativeUpdateState;
+  onApplyNow: () => void;
+  onApplyNextLaunch: () => void;
+}) {
+  if (!update.bundle) {
+    return null;
+  }
+
+  return (
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:px-6">
+      <div className="pointer-events-auto mx-auto max-w-lg translate-y-0 rounded-t-lg border border-border bg-card p-4 shadow-2xl sm:rounded-lg">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-md bg-accent text-primary">
+            <CloudDownload className="size-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="font-medium">Update ready</p>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              A new Valence app update is downloaded and ready to apply.
+            </p>
+            {update.percent !== null && update.percent < 100 ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Downloading {Math.round(update.percent)}%
+              </p>
+            ) : null}
+          </div>
+        </div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto]">
+          <Button onClick={onApplyNow} type="button">
+            Apply now
+          </Button>
+          <Button onClick={onApplyNextLaunch} type="button" variant="outline">
+            Next app launch
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -190,7 +434,7 @@ function LoginScreen() {
   }
 
   return (
-    <main className="valence-auth-scene min-h-dvh bg-background px-4 py-8 text-foreground sm:px-6 lg:px-8">
+    <main className="valence-auth-scene valence-safe-screen bg-background px-4 py-8 text-foreground sm:px-6 lg:px-8">
       <section className="mx-auto flex min-h-[calc(100dvh-4rem)] max-w-md flex-col justify-center">
         <Card>
           <CardHeader>
@@ -401,12 +645,12 @@ function WorkspaceShell({
   );
 
   return (
-    <div className="valence-auth-scene min-h-dvh bg-background text-foreground lg:grid lg:grid-cols-[18rem_1fr]">
+    <div className="valence-auth-scene valence-safe-screen bg-background text-foreground lg:grid lg:grid-cols-[18rem_1fr]">
       <div className="hidden lg:block">{aside}</div>
 
       <div
         className={cn(
-          "fixed inset-0 z-40 lg:hidden",
+          "valence-safe-fixed fixed z-40 lg:hidden",
           isOpen || dragX !== null ? "pointer-events-auto" : "pointer-events-none"
         )}
         data-state={isOpen ? "open" : "closed"}
@@ -442,7 +686,7 @@ function WorkspaceShell({
 
       <div
         aria-hidden="true"
-        className="fixed inset-y-0 left-0 z-30 w-7 lg:hidden"
+        className="fixed bottom-[env(safe-area-inset-bottom)] left-[env(safe-area-inset-left)] top-[env(safe-area-inset-top)] z-30 w-7 lg:hidden"
         data-testid="mobile-nav-edge-swipe"
         onTouchCancel={resetSwipe}
         onTouchEnd={finishSwipe}
@@ -477,7 +721,24 @@ function WorkspaceShell({
   );
 }
 
-function MemberDashboard({ user }: { user: User }) {
+function MemberDashboard({
+  pushRegistration,
+  user,
+  onEnablePushNotifications
+}: {
+  pushRegistration: PushRegistrationState;
+  user: User;
+  onEnablePushNotifications: () => void;
+}) {
+  const pushDescription =
+    pushRegistration.status === "registered"
+      ? "This device is registered for Valence notifications."
+      : pushRegistration.status === "denied"
+        ? "Notifications are disabled in system settings for this device."
+        : pushRegistration.status === "unsupported"
+          ? "Push notifications are only available in the native app."
+          : "Enable care reminders and important account notifications.";
+
   return (
     <section className="mx-auto flex max-w-6xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
@@ -528,6 +789,37 @@ function MemberDashboard({ user }: { user: User }) {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Notifications</CardTitle>
+          <CardDescription>{pushDescription}</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <span className="flex size-10 items-center justify-center rounded-md bg-accent text-primary">
+              <Bell className="size-5" />
+            </span>
+            <span>
+              {pushRegistration.status === "registered"
+                ? "Device token is ready."
+                : "Permission is requested only when you opt in."}
+            </span>
+          </div>
+          <Button
+            disabled={pushRegistration.status === "registered"}
+            onClick={onEnablePushNotifications}
+            type="button"
+            variant={
+              pushRegistration.status === "registered" ? "outline" : "default"
+            }
+          >
+            {pushRegistration.status === "registered"
+              ? "Enabled"
+              : "Enable notifications"}
+          </Button>
+        </CardContent>
+      </Card>
     </section>
   );
 }
@@ -538,6 +830,79 @@ export function AppAuthExperience() {
     isLoading: true,
     user: null
   });
+  const [nativeUpdate, dispatchNativeUpdate] = useReducer(nativeUpdateReducer, {
+    bundle: null,
+    error: null,
+    percent: null
+  });
+  const [pushRegistration, setPushRegistration] =
+    useState<PushRegistrationState>({
+      error: null,
+      status: Capacitor.isNativePlatform() ? "idle" : "unsupported",
+      token: null
+    });
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) {
+      return () => {};
+    }
+
+    return bindNativeUpdateLifecycle(dispatchNativeUpdate);
+  }, []);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) {
+      return () => {};
+    }
+
+    return bindPushNotificationLifecycle(setPushRegistration);
+  }, []);
+
+  async function enablePushNotifications() {
+    if (!Capacitor.isNativePlatform()) {
+      setPushRegistration({
+        error: null,
+        status: "unsupported",
+        token: null
+      });
+      return;
+    }
+
+    setPushRegistration((current) => ({ ...current, status: "prompt" }));
+    let permission = await PushNotifications.checkPermissions();
+
+    if (permission.receive === "prompt") {
+      permission = await PushNotifications.requestPermissions();
+    }
+
+    if (permission.receive !== "granted") {
+      setPushRegistration({
+        error: "Notifications were not granted for this device.",
+        status: "denied",
+        token: null
+      });
+      return;
+    }
+
+    await PushNotifications.register();
+  }
+
+  async function applyNativeUpdateOnNextLaunch() {
+    if (!nativeUpdate.bundle) {
+      return;
+    }
+
+    await CapacitorUpdater.next({ id: nativeUpdate.bundle.id });
+    dispatchNativeUpdate({ type: "dismiss" });
+  }
+
+  async function applyNativeUpdateNow() {
+    if (!nativeUpdate.bundle) {
+      return;
+    }
+
+    await CapacitorUpdater.set({ id: nativeUpdate.bundle.id });
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -645,7 +1010,7 @@ export function AppAuthExperience() {
 
   if (authState.isLoading) {
     return (
-      <main className="valence-auth-scene grid min-h-dvh place-items-center bg-background p-6 text-foreground">
+      <main className="valence-auth-scene valence-safe-screen grid place-items-center bg-background p-6 text-foreground">
         <Card className="w-full max-w-sm">
           <CardHeader>
             <CardTitle>Opening Valence</CardTitle>
@@ -662,7 +1027,16 @@ export function AppAuthExperience() {
 
   return (
     <WorkspaceShell onSignOut={() => void signOut()} user={authState.user}>
-      <MemberDashboard user={authState.user} />
+      <MemberDashboard
+        onEnablePushNotifications={() => void enablePushNotifications()}
+        pushRegistration={pushRegistration}
+        user={authState.user}
+      />
+      <NativeUpdateDrawer
+        onApplyNextLaunch={() => void applyNativeUpdateOnNextLaunch()}
+        onApplyNow={() => void applyNativeUpdateNow()}
+        update={nativeUpdate}
+      />
     </WorkspaceShell>
   );
 }

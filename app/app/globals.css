@@ -85,6 +85,21 @@ button:not(:disabled),
   color: var(--primary-foreground);
 }
 
+.valence-safe-screen {
+  min-height: 100dvh;
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+}
+
+.valence-safe-fixed {
+  top: env(safe-area-inset-top);
+  right: env(safe-area-inset-right);
+  bottom: env(safe-area-inset-bottom);
+  left: env(safe-area-inset-left);
+}
+
 .valence-auth-scene {
   animation: valence-scene-enter 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
