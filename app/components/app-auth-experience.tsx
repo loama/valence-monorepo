@@ -297,13 +297,10 @@ function bindListener(
   });
 }
 
-async function holdNativeUpdateForPrompt() {
-  const oneYearFromNow = new Date(
-    Date.now() + 365 * 24 * 60 * 60 * 1000
-  ).toISOString();
-
+async function scheduleNativeUpdateForNextLaunch(bundle: BundleInfo) {
+  await CapacitorUpdater.next({ id: bundle.id });
   await CapacitorUpdater.setMultiDelay({
-    delayConditions: [{ kind: "date", value: oneYearFromNow }]
+    delayConditions: [{ kind: "kill" }]
   });
 }
 
@@ -317,6 +314,7 @@ function bindNativeUpdateLifecycle(
 
   void CapacitorUpdater.getNextBundle().then((bundle) => {
     if (bundle && isActive) {
+      void scheduleNativeUpdateForNextLaunch(bundle);
       dispatch({ bundle, type: "downloaded" });
     }
   });
@@ -331,7 +329,7 @@ function bindNativeUpdateLifecycle(
 
   bindListener(
     CapacitorUpdater.addListener("downloadComplete", ({ bundle }) => {
-      void holdNativeUpdateForPrompt();
+      void scheduleNativeUpdateForNextLaunch(bundle);
       dispatch({ bundle, type: "downloaded" });
     }),
     handles,
@@ -386,7 +384,6 @@ async function checkAndDownloadNativeUpdate(
     const latest = await CapacitorUpdater.getLatest();
 
     if (!isDownloadableUpdate(latest)) {
-      dispatch({ type: "dismiss" });
       return;
     }
 
@@ -398,7 +395,7 @@ async function checkAndDownloadNativeUpdate(
       version: latest.version
     });
 
-    await holdNativeUpdateForPrompt();
+    await scheduleNativeUpdateForNextLaunch(bundle);
     dispatch({ bundle, type: "downloaded" });
   } catch (error) {
     dispatch({
@@ -1816,10 +1813,7 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
       return;
     }
 
-    await CapacitorUpdater.next({ id: nativeUpdate.bundle.id });
-    await CapacitorUpdater.setMultiDelay({
-      delayConditions: [{ kind: "kill" }]
-    });
+    await scheduleNativeUpdateForNextLaunch(nativeUpdate.bundle);
     dispatchNativeUpdate({ type: "dismiss" });
   }
 
