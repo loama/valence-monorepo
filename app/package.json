@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "next dev --webpack --port 3001",
     "build": "next build",
-    "build:mobile": "CAPACITOR_EXPORT=true NEXT_PUBLIC_APP_BASE_PATH= next build",
+    "build:mobile": "CAPACITOR_EXPORT=true NEXT_PUBLIC_APP_BASE_PATH= next build && cp out/app.html out/index.html",
     "start": "next start --port 3001",
     "react-doctor": "react-doctor .",
     "cap:sync": "bunx cap sync",
