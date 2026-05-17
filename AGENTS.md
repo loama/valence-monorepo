@@ -54,7 +54,10 @@ bun run react-doctor:app
 - Use `cn()` for conditional Tailwind class composition.
 - Avoid inline styles unless there is a concrete technical reason.
 - Check React Doctor when touching React or Next.js code.
-- Follow the copied skills in `.claude/skills` when they apply:
+- Use the repo-level skills in `skills/` as the canonical agent skills folder.
+- When a task names a skill, or clearly matches one, read `skills/<skill-name>/SKILL.md` before acting.
+- `.claude/skills` is only a compatibility link for Claude Code. Do not treat it as the source of truth.
+- Follow these repo skills when they apply:
   - `frontend-design`
   - `component-creation`
   - `react-doctor`
