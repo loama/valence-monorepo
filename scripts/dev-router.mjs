@@ -111,7 +111,30 @@ function startWorkspace(name) {
   });
 }
 
-function chooseUpstream(pathname) {
+function chooseUpstream(pathname, request) {
+  if (pathname === "/_next" || pathname.startsWith("/_next/")) {
+    const referer = request?.headers.get("referer");
+
+    if (referer) {
+      try {
+        const refererPathname = new URL(referer).pathname;
+
+        if (
+          refererPathname === "/admin" ||
+          refererPathname.startsWith("/admin/")
+        ) {
+          return upstreams.admin;
+        }
+
+        if (refererPathname === "/app" || refererPathname.startsWith("/app/")) {
+          return upstreams.app;
+        }
+      } catch {
+        return upstreams.website;
+      }
+    }
+  }
+
   if (pathname === "/app" || pathname.startsWith("/app/")) {
     return upstreams.app;
   }
@@ -125,7 +148,7 @@ function chooseUpstream(pathname) {
 
 async function proxyRequest(request) {
   const incomingUrl = new URL(request.url);
-  const upstream = chooseUpstream(incomingUrl.pathname);
+  const upstream = chooseUpstream(incomingUrl.pathname, request);
   const targetUrl = new URL(request.url);
 
   targetUrl.protocol = "http:";
@@ -137,7 +160,7 @@ async function proxyRequest(request) {
   headers.set("x-forwarded-host", `localhost:${routerPort}`);
   headers.set("x-forwarded-proto", "http");
 
-  const upstreamResponse = await fetch(targetUrl, {
+  let upstreamResponse = await fetch(targetUrl, {
     method: request.method,
     headers,
     body:
@@ -146,6 +169,29 @@ async function proxyRequest(request) {
         : request.body,
     redirect: "manual"
   });
+
+  if (
+    incomingUrl.pathname.startsWith("/_next/") &&
+    upstreamResponse.status === 404 &&
+    upstream === upstreams.website
+  ) {
+    const fallbackUrl = new URL(request.url);
+
+    fallbackUrl.protocol = "http:";
+    fallbackUrl.hostname = "127.0.0.1";
+    fallbackUrl.port = String(upstreams.admin.port);
+    headers.set("host", `127.0.0.1:${upstreams.admin.port}`);
+
+    const fallbackResponse = await fetch(fallbackUrl, {
+      method: request.method,
+      headers,
+      redirect: "manual"
+    });
+
+    if (fallbackResponse.status !== 404) {
+      upstreamResponse = fallbackResponse;
+    }
+  }
 
   const responseHeaders = new Headers(upstreamResponse.headers);
 
@@ -164,7 +210,7 @@ async function proxyRequest(request) {
 
 function buildUpstreamUrl(request, protocol) {
   const incomingUrl = new URL(request.url);
-  const upstream = chooseUpstream(incomingUrl.pathname);
+  const upstream = chooseUpstream(incomingUrl.pathname, request);
   const targetUrl = new URL(request.url);
 
   targetUrl.protocol = protocol;

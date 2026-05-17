@@ -18,11 +18,11 @@
   "routes": [
     {
       "src": "/app/_next/(.*)",
-      "dest": "_next/$1"
+      "dest": "/_next/$1"
     },
     {
       "src": "/admin/_next/(.*)",
-      "dest": "admin/_next/$1"
+      "dest": "/admin/_next/$1"
     },
     {
       "src": "/app/?",
