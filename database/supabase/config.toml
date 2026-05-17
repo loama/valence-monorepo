@@ -6,6 +6,7 @@ project_id = "iqkwqjgvtzknyoldnrzj"
 [remotes.production.auth]
 site_url = "https://valencedev.com/admin"
 additional_redirect_urls = [
+  "https://valencedev.com/app",
   "https://valencedev.com/admin",
   "https://valencedev.com/admin/login",
   "https://valencedev.com/admin/auth/callback"
@@ -17,9 +18,11 @@ project_id = "zvoimvxsiukmcggvkfhq"
 [remotes.development.auth]
 site_url = "https://valencedev.com/admin"
 additional_redirect_urls = [
+  "http://localhost:3005/app",
   "http://localhost:3005/admin",
   "http://localhost:3005/admin/login",
   "http://localhost:3005/admin/auth/callback",
+  "https://valencedev.com/app",
   "https://valencedev.com/admin",
   "https://valencedev.com/admin/login",
   "https://valencedev.com/admin/auth/callback"
@@ -56,8 +59,9 @@ port = 54323
 
 [auth]
 enabled = true
-site_url = "http://localhost:3002/admin"
+site_url = "http://localhost:3005/admin"
 additional_redirect_urls = [
+  "http://localhost:3005/app",
   "http://localhost:3002/admin",
   "http://localhost:3002/admin/login",
   "http://localhost:3002/admin/auth/callback",
