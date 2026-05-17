@@ -124,7 +124,7 @@ function AccessRequiredScreen() {
           </CardHeader>
           <CardContent>
             <Button asChild className="w-full">
-              <Link href="/login">
+              <Link href={`${adminBasePath}/login`}>
                 Continue to sign in
                 <ArrowRight data-icon="inline-end" />
               </Link>
@@ -195,7 +195,7 @@ export default async function AdminHome() {
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button asChild variant="outline">
-              <Link href="/login">Manage session</Link>
+              <Link href={`${adminBasePath}/login`}>Manage session</Link>
             </Button>
             <form action={`${adminBasePath}/sign-out`} method="post">
               <Button type="submit">Sign out</Button>
@@ -291,7 +291,7 @@ export default async function AdminHome() {
             </CardContent>
             <CardFooter>
               <Button asChild className="w-full" variant="outline">
-                <Link href="/login">Review auth setup</Link>
+                <Link href={`${adminBasePath}/login`}>Review auth setup</Link>
               </Button>
             </CardFooter>
           </Card>

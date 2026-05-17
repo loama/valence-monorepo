@@ -113,14 +113,17 @@ function startWorkspace(name) {
 
 function chooseUpstream(pathname) {
   if (pathname === "/app" || pathname.startsWith("/app/")) {
-    return upstreams.app;
+    return { ...upstreams.app, pathname };
   }
 
   if (pathname === "/admin" || pathname.startsWith("/admin/")) {
-    return upstreams.admin;
+    return {
+      ...upstreams.admin,
+      pathname: pathname.slice("/admin".length) || "/"
+    };
   }
 
-  return upstreams.website;
+  return { ...upstreams.website, pathname };
 }
 
 async function proxyRequest(request) {
@@ -131,6 +134,7 @@ async function proxyRequest(request) {
   targetUrl.protocol = "http:";
   targetUrl.hostname = "127.0.0.1";
   targetUrl.port = String(upstream.port);
+  targetUrl.pathname = upstream.pathname;
 
   const headers = new Headers(request.headers);
   headers.set("host", `127.0.0.1:${upstream.port}`);

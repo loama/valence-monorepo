@@ -4,7 +4,8 @@ Internal Next.js and shadcn workspace for Valence operations.
 
 ## Routes
 
-- Local: `http://localhost:3002/admin`
+- Local gateway: `http://localhost:3005/admin`
+- Direct admin workspace: `NEXT_PUBLIC_ADMIN_BASE_PATH="" bun run dev`
 - Vercel: `https://<domain>/admin`
 
 ## Environment
@@ -14,7 +15,7 @@ Create `admin/.env.local` with:
 ```bash
 NEXT_PUBLIC_SUPABASE_URL="https://your-project.supabase.co"
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="your-publishable-key"
-ADMIN_EMAIL_ALLOWLIST="ops@valence.example,founder@valence.example"
+ADMIN_EMAIL_ALLOWLIST="eduardo@werevalence.com,fernanda@werevalence.com,elena@werevalence.com"
 ```
 
 `NEXT_PUBLIC_SUPABASE_ANON_KEY` is also supported for projects that have not

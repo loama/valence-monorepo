@@ -100,7 +100,7 @@ export default async function LoginPage({
             </form>
 
             <Button asChild variant="ghost">
-              <Link href="/">Back to admin overview</Link>
+              <Link href={adminBasePath}>Back to admin overview</Link>
             </Button>
           </CardContent>
         </Card>
