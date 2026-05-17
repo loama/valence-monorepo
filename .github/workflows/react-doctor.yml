@@ -7,6 +7,7 @@ on:
       - development
     paths:
       - app/**
+      - admin/**
       - website/**
       - scripts/react-doctor-score.mjs
       - package.json
@@ -22,6 +23,7 @@ jobs:
       matrix:
         project:
           - app
+          - admin
           - website
 
     steps:

@@ -17,5 +17,8 @@ coverage/
 app/android/
 app/ios/
 app/node_modules/
+admin/node_modules/
 website/node_modules/
 api/node_modules/
+database/node_modules/
+database/supabase/.temp/

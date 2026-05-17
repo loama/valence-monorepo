@@ -9,6 +9,10 @@
     {
       "src": "app/package.json",
       "use": "@vercel/next"
+    },
+    {
+      "src": "admin/package.json",
+      "use": "@vercel/next"
     }
   ],
   "routes": [
@@ -17,8 +21,16 @@
       "dest": "app/_next/$1"
     },
     {
+      "src": "/admin/_next/(.*)",
+      "dest": "admin/_next/$1"
+    },
+    {
       "src": "/app(?:/(.*))?",
       "dest": "app"
+    },
+    {
+      "src": "/admin(?:/(.*))?",
+      "dest": "admin"
     },
     {
       "src": "/(.*)",

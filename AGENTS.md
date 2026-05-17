@@ -4,11 +4,14 @@ Guidance for agents working in the Valence monorepo.
 
 ## Project Overview
 
-Valence is a psychology platform with three deployable projects:
+Valence is a psychology platform with deployable projects and database
+infrastructure:
 
 - `app`: Next.js, Capacitor, and shadcn product app. Deployed on Vercel under `/app`.
+- `admin`: Next.js and shadcn internal admin. Deployed on Vercel under `/admin`.
 - `website`: Next.js and shadcn public website. Deployed on Vercel at `/`.
 - `api`: Node.js and Express platform API. Deployed on Heroku.
+- `database`: Supabase CLI and Drizzle workspace for schema, migrations, and local database config.
 
 Branches:
 
@@ -18,7 +21,7 @@ Branches:
 ## Package Management
 
 - Use Bun only. Do not use npm, yarn, or pnpm.
-- Keep dependencies inside `app`, `website`, and `api`.
+- Keep dependencies inside `app`, `admin`, `website`, `api`, and `database`.
 - Do not create or rely on root `node_modules`.
 - Never commit any `node_modules` directory.
 - Install all project dependencies with `bun run install:all`.
@@ -29,11 +32,14 @@ Common commands:
 ```bash
 bun run install:all
 bun run build
+bun run dev
 bun run dev:website
 bun run dev:app
+bun run dev:admin
 bun run dev:api
 bun run react-doctor:website
 bun run react-doctor:app
+bun run react-doctor:admin
 ```
 
 ## Development Standards
