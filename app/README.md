@@ -13,6 +13,19 @@ bun run --cwd app cap:sync:ios
 `valence://auth/callback` as the native redirect URL. Local web development
 continues to use `app/.env.local`.
 
+## Release Versions
+
+Capgo live updates use `app/release-version.json` as the source of truth.
+The current release is displayed in the app as a plain integer, for example
+`103`. The GitHub Action uploads the same release to Capgo as semver
+`103.0.0`, because Capgo requires semver-compatible bundle names.
+
+Before publishing a new mobile live update, bump the release by one:
+
+```bash
+bun run --cwd app release:bump
+```
+
 Supabase Auth URL configuration for the production project should allow:
 
 - Site URL: `https://valencedev.com/app`

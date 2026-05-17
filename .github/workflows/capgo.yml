@@ -52,23 +52,27 @@ jobs:
       - name: Upload production bundle to Capgo
         working-directory: app
         run: |
-          native_version="$(
-            sed -n 's/.*MARKETING_VERSION = \([^;]*\);/\1/p' \
-              ios/App/App.xcodeproj/project.pbxproj |
-              head -n 1 |
-              tr -d '[:space:]'
+          release_number="$(
+            bun -e '
+              const fs = require("node:fs");
+              const release = JSON.parse(fs.readFileSync("release-version.json", "utf8"));
+              const version = Number(release.version);
+              if (!Number.isInteger(version) || version < 1) {
+                console.error("release-version.json must contain a positive integer version.");
+                process.exit(1);
+              }
+              console.log(version);
+            '
           )"
-          if [ -z "$native_version" ]; then
-            echo "::error::Unable to read native iOS MARKETING_VERSION."
+          if [ -z "$release_number" ]; then
+            echo "::error::Unable to read app release version."
             exit 1
           fi
-          bundle_base="$(echo "$native_version" | awk -F. '{ print $1 "." $2 }')"
-          bundle_version="${bundle_base}.$(date -u +%Y%m%d%H%M%S)"
+          bundle_version="${release_number}.0.0"
           bunx @capgo/cli@latest bundle upload com.valencedev.platform \
             --apikey "$CAPGO_TOKEN" \
             --path out \
             --channel production \
             --bundle "$bundle_version" \
             --comment "$GITHUB_SHA" \
-            --key-data-v2 "$CAPGO_PRIVATE_KEY" \
-            --version-exists-ok
+            --key-data-v2 "$CAPGO_PRIVATE_KEY"

@@ -51,6 +51,7 @@ import {
   type LucideIcon
 } from "lucide-react";
 import packageJson from "@/package.json";
+import releaseVersion from "@/release-version.json";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -75,8 +76,8 @@ const nativeRedirectUrl =
 export type PageKey = "home" | "exercises" | "sessions" | "messages" | "profile";
 
 type VersionState = {
-  capgoVersion: string;
   installedVersion: string;
+  releaseVersion: string;
 };
 
 type AuthState = {
@@ -126,7 +127,11 @@ type NativeUpdateAction =
       type: "dismiss";
     };
 
-const installedVersion = packageJson.version;
+const fallbackInstalledVersion = packageJson.version;
+const appReleaseNumber = Number(releaseVersion.version);
+const appReleaseVersion = Number.isInteger(appReleaseNumber)
+  ? String(appReleaseNumber)
+  : fallbackInstalledVersion;
 
 const navItems: Array<{
   description: string;
@@ -466,8 +471,8 @@ function getRedirectTo() {
 
 function useAppVersions(): VersionState {
   const [versions, setVersions] = useState<VersionState>({
-    capgoVersion: Capacitor.isNativePlatform() ? "checking" : "web",
-    installedVersion
+    installedVersion: fallbackInstalledVersion,
+    releaseVersion: Capacitor.isNativePlatform() ? "checking" : appReleaseVersion
   });
 
   useEffect(() => {
@@ -475,8 +480,8 @@ function useAppVersions(): VersionState {
 
     if (!Capacitor.isNativePlatform()) {
       setVersions({
-        capgoVersion: "web",
-        installedVersion
+        installedVersion: "web",
+        releaseVersion: appReleaseVersion
       });
       return () => {
         isMounted = false;
@@ -490,15 +495,18 @@ function useAppVersions(): VersionState {
         }
 
         setVersions({
-          capgoVersion: bundle.bundle.version ?? bundle.bundle.id ?? "builtin",
-          installedVersion: bundle.native || installedVersion
+          installedVersion: bundle.native || fallbackInstalledVersion,
+          releaseVersion: getVisibleReleaseVersion(
+            bundle.bundle.id,
+            bundle.bundle.version
+          )
         });
       })
       .catch(() => {
         if (isMounted) {
           setVersions({
-            capgoVersion: "unknown",
-            installedVersion
+            installedVersion: fallbackInstalledVersion,
+            releaseVersion: "unknown"
           });
         }
       });
@@ -509,6 +517,23 @@ function useAppVersions(): VersionState {
   }, []);
 
   return versions;
+}
+
+function getVisibleReleaseVersion(
+  bundleId: string | null | undefined,
+  bundleVersion: string | null | undefined
+) {
+  if (!bundleId || bundleId === "builtin") {
+    return "built-in";
+  }
+
+  return formatReleaseVersion(bundleVersion ?? bundleId);
+}
+
+function formatReleaseVersion(version: string) {
+  const integerVersion = version.match(/^(\d+)\.0\.0$/);
+
+  return integerVersion?.[1] ?? version;
 }
 
 function BrandLogo({ className, size = "md" }: { className?: string; size?: "sm" | "md" | "lg" }) {
@@ -612,8 +637,8 @@ function VersionBadge({
       <span className="font-extrabold text-foreground">Installed</span>{" "}
       {versions.installedVersion}
       <span className="mx-2 text-border">/</span>
-      <span className="font-extrabold text-foreground">Capgo</span>{" "}
-      {versions.capgoVersion}
+      <span className="font-extrabold text-foreground">Release</span>{" "}
+      {versions.releaseVersion}
     </div>
   );
 }
