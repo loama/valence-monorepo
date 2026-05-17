@@ -32,7 +32,9 @@ export async function POST(request: Request) {
     options: {
       redirectTo:
         `${origin}${adminBasePath}/auth/callback?next=` +
-        encodeURIComponent(adminBasePath)
+        encodeURIComponent(adminBasePath),
+      queryParams:
+        provider === "google" ? { prompt: "select_account" } : undefined
     }
   });
 

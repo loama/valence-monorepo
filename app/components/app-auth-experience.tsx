@@ -159,7 +159,9 @@ function LoginScreen() {
     const { error: providerError } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: getRedirectTo()
+        redirectTo: getRedirectTo(),
+        queryParams:
+          provider === "google" ? { prompt: "select_account" } : undefined
       }
     });
 
