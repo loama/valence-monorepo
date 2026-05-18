@@ -11,7 +11,7 @@ Valence should feel warm, optimistic, and clinical without becoming sterile. The
 - Canvas: warm off-white, `#fbfaf7`
 - Ink: soft black, `#181b22`
 - Primary: vivid violet, `#6833f4`
-- Primary gradient: `#7d36ff` to `#5c22e6`
+- Primary actions: solid violet, `#6833f4`
 - Support colors: orange `#ff7b2c`, yellow `#f2d300`, soft lavender `#efe7ff`
 - Surfaces: white glass cards with subtle borders and soft shadows
 - Radius: large mobile cards around `24px`, controls around `18px`, nav pills fully rounded
@@ -25,7 +25,7 @@ Valence should feel warm, optimistic, and clinical without becoming sterile. The
 
 ## Components
 
-- Primary actions use violet gradients with bright white text.
+- Primary actions use solid violet with bright white text.
 - Cards are white, softly bordered, and lightly translucent.
 - Active nav items sit inside a pale lavender pill with violet icon/text.
 - Form inputs are tall rounded rectangles with quiet borders and icon-leading affordances.

@@ -58,10 +58,7 @@ html {
 body {
   min-height: 100dvh;
   margin: 0;
-  background:
-    radial-gradient(circle at 75% 4%, rgba(104, 51, 244, 0.08), transparent 30%),
-    radial-gradient(circle at 8% 78%, rgba(242, 211, 0, 0.08), transparent 24%),
-    var(--background);
+  background: var(--background);
   color: var(--foreground);
   font-family: var(--font-valence-sans), system-ui, sans-serif;
   font-feature-settings:
@@ -106,7 +103,7 @@ button:not(:disabled),
 }
 
 .valence-spark {
-  background: linear-gradient(135deg, #8d5cff, #4f1bd7);
+  background: var(--valence-purple);
   clip-path: polygon(
     50% 0%,
     61% 33%,
@@ -122,9 +119,7 @@ button:not(:disabled),
 }
 
 .valence-panel {
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.76)),
-    radial-gradient(circle at 100% 0%, rgba(104, 51, 244, 0.08), transparent 42%);
+  background: rgba(255, 255, 255, 0.88);
   border: 1px solid rgba(24, 27, 34, 0.1);
   box-shadow:
     0 26px 70px rgba(24, 27, 34, 0.08),
@@ -132,24 +127,18 @@ button:not(:disabled),
 }
 
 .valence-purple-surface {
-  background:
-    radial-gradient(circle at 82% 12%, rgba(255, 255, 255, 0.36), transparent 22%),
-    linear-gradient(135deg, #7d36ff 0%, #5c22e6 100%);
+  background: var(--valence-purple);
   box-shadow: 0 24px 44px rgba(104, 51, 244, 0.28);
 }
 
 .valence-brand-button {
-  background:
-    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.28), transparent 30%),
-    linear-gradient(135deg, #7535ff 0%, #5e20ea 100%);
+  background: var(--valence-purple);
   border: 0;
   box-shadow: 0 18px 34px rgba(104, 51, 244, 0.28);
 }
 
 .valence-brand-button:hover {
-  background:
-    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.32), transparent 30%),
-    linear-gradient(135deg, #8148ff 0%, #6428f0 100%);
+  background: var(--valence-purple-deep);
 }
 
 .valence-squiggle {
@@ -200,16 +189,16 @@ button:not(:disabled),
 }
 
 .valence-mascot-purple {
-  background: linear-gradient(135deg, #8c55ff, #5b1de4);
+  background: var(--valence-purple);
   box-shadow: 0 18px 24px rgba(104, 51, 244, 0.24);
 }
 
 .valence-mascot-yellow {
-  background: linear-gradient(135deg, #f7df24, #efc700);
+  background: var(--valence-yellow);
 }
 
 .valence-mascot-orange {
-  background: linear-gradient(135deg, #ff9140, #ff7427);
+  background: var(--valence-orange);
 }
 
 .valence-spinner {

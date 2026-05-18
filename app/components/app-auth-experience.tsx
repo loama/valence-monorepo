@@ -326,17 +326,21 @@ function bindNativeUpdateLifecycle(
 
   void CapacitorUpdater.notifyAppReady();
 
-  void CapacitorUpdater.current().then((bundle) => {
+  void CapacitorUpdater.current().then((currentBundle) => {
     if (isActive) {
-      console.info("[valence:update] current bundle", bundle);
+      console.info("[valence:update] current bundle", currentBundle);
     }
-  });
 
-  void CapacitorUpdater.getNextBundle().then((bundle) => {
-    if (bundle && isActive) {
-      void scheduleNativeUpdateForNextLaunch(bundle);
-      dispatch({ bundle, type: "downloaded" });
-    }
+    void CapacitorUpdater.getNextBundle().then((nextBundle) => {
+      if (
+        nextBundle &&
+        isActive &&
+        nextBundle.id !== currentBundle.bundle.id
+      ) {
+        void scheduleNativeUpdateForNextLaunch(nextBundle);
+        dispatch({ bundle: nextBundle, type: "downloaded" });
+      }
+    });
   });
 
   bindListener(
@@ -400,9 +404,10 @@ async function checkAndDownloadNativeUpdate(
   dispatch({ type: "checking" });
 
   try {
+    const currentBundle = await CapacitorUpdater.current();
     const nextBundle = await CapacitorUpdater.getNextBundle();
 
-    if (nextBundle) {
+    if (nextBundle && nextBundle.id !== currentBundle.bundle.id) {
       await scheduleNativeUpdateForNextLaunch(nextBundle);
       dispatch({ bundle: nextBundle, type: "downloaded" });
       return;
@@ -573,7 +578,7 @@ function BrandLogo({ className, size = "md" }: { className?: string; size?: "sm"
     <span
       className={cn(
         "valence-logo",
-        size === "lg" ? "text-7xl" : size === "md" ? "text-4xl" : "text-3xl",
+        size === "lg" ? "text-6xl" : size === "md" ? "text-3xl" : "text-2xl",
         className
       )}
     >
@@ -581,7 +586,7 @@ function BrandLogo({ className, size = "md" }: { className?: string; size?: "sm"
       <span
         className={cn(
           "valence-spark ml-1.5",
-          size === "lg" ? "size-10" : size === "md" ? "size-6" : "size-4"
+          size === "lg" ? "size-8" : size === "md" ? "size-5" : "size-3.5"
         )}
       />
     </span>
@@ -629,8 +634,8 @@ function PageChrome({
   mascot?: ReactNode;
 }) {
   return (
-    <section className="relative mx-auto flex max-w-5xl flex-col gap-5 overflow-hidden px-5 pb-10 pt-6 sm:px-6 lg:px-8">
-      <div className="pointer-events-none absolute right-[-3rem] top-8 hidden size-40 rounded-full bg-[var(--valence-yellow)]/75 sm:block" />
+    <section className="relative mx-auto flex max-w-5xl flex-col gap-4 overflow-hidden px-5 pb-8 pt-4 sm:px-6 lg:px-8">
+      <div className="pointer-events-none absolute right-[-3rem] top-8 hidden size-36 rounded-full bg-[var(--valence-yellow)]/75 sm:block" />
       <div className="pointer-events-none absolute right-8 top-16 hidden sm:block">
         {mascot}
       </div>
@@ -640,14 +645,14 @@ function PageChrome({
             {eyebrow}
           </span>
         ) : null}
-        <h1 className="mt-4 max-w-2xl text-5xl font-semibold leading-[0.95] text-foreground sm:text-6xl">
+        <h1 className="mt-4 max-w-2xl text-4xl font-semibold leading-[0.98] text-foreground sm:text-5xl">
           {title}
         </h1>
-        <p className="mt-3 max-w-xl text-xl leading-8 text-muted-foreground">
+        <p className="mt-3 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
           {description}
         </p>
       </div>
-      <div className="relative grid gap-5">{children}</div>
+      <div className="relative grid gap-4">{children}</div>
     </section>
   );
 }
@@ -707,11 +712,11 @@ function NativeUpdateDrawer({
       <DrawerContent className="mx-auto max-w-xl px-[env(safe-area-inset-left)]">
         <DrawerHeader className="text-left">
           <div className="flex items-start gap-3">
-            <span className="valence-purple-surface mt-0.5 flex size-12 shrink-0 items-center justify-center rounded-2xl text-white">
+            <span className="valence-purple-surface mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-[1.1rem] text-white">
               <CloudDownload className="size-5" />
             </span>
             <div className="min-w-0 flex-1">
-              <DrawerTitle className="text-2xl font-black">
+              <DrawerTitle className="text-xl font-black">
                 Update ready
               </DrawerTitle>
               <DrawerDescription className="mt-1 leading-6">
@@ -727,7 +732,7 @@ function NativeUpdateDrawer({
         </DrawerHeader>
         <DrawerFooter className="grid gap-2 sm:grid-cols-[1fr_auto]">
           <Button
-            className="valence-brand-button h-12 rounded-2xl text-base font-extrabold"
+            className="valence-brand-button h-11 rounded-2xl text-sm font-extrabold"
             onClick={onApplyNow}
             type="button"
           >
@@ -735,7 +740,7 @@ function NativeUpdateDrawer({
           </Button>
           <DrawerClose asChild>
             <Button
-              className="h-12 rounded-2xl text-base font-extrabold"
+              className="h-11 rounded-2xl text-sm font-extrabold"
               onClick={onApplyNextLaunch}
               type="button"
               variant="outline"
@@ -758,14 +763,14 @@ function MessagesDrawer({
 }) {
   return (
     <Drawer open={open} onOpenChange={onOpenChange} shouldScaleBackground={false}>
-      <DrawerContent className="mx-auto flex h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] max-w-3xl flex-col overflow-hidden rounded-t-[2.25rem] border-border bg-background px-[calc(env(safe-area-inset-left)+1rem)] pb-[calc(env(safe-area-inset-bottom)+1rem)] pr-[calc(env(safe-area-inset-right)+1rem)] pt-4">
+      <DrawerContent className="mx-auto flex h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] max-w-3xl flex-col overflow-hidden rounded-t-[2rem] border-border bg-background px-[calc(env(safe-area-inset-left)+1rem)] pb-[calc(env(safe-area-inset-bottom)+1rem)] pr-[calc(env(safe-area-inset-right)+1rem)] pt-4">
         <DrawerHeader className="shrink-0 px-1 pb-3 pt-1 text-left">
           <div className="flex items-center gap-3">
-            <span className="grid size-12 place-items-center rounded-2xl bg-[var(--valence-purple-soft)] text-primary">
+            <span className="grid size-10 place-items-center rounded-[1.1rem] bg-[var(--valence-purple-soft)] text-primary">
               <MessageCircle className="size-5" />
             </span>
             <div className="min-w-0 flex-1">
-              <DrawerTitle className="text-2xl font-black">
+              <DrawerTitle className="text-xl font-black">
                 Messages
               </DrawerTitle>
               <DrawerDescription className="mt-0.5">
@@ -867,7 +872,7 @@ function LoginScreen({ versions }: { versions: VersionState }) {
   }
 
   return (
-    <main className="valence-auth-scene relative min-h-dvh overflow-hidden bg-background pb-[calc(env(safe-area-inset-bottom)+1.75rem)] pl-[calc(env(safe-area-inset-left)+1.25rem)] pr-[calc(env(safe-area-inset-right)+1.25rem)] pt-[calc(env(safe-area-inset-top)+1.75rem)] text-foreground sm:pl-[calc(env(safe-area-inset-left)+1.5rem)] sm:pr-[calc(env(safe-area-inset-right)+1.5rem)]">
+    <main className="valence-auth-scene relative min-h-dvh overflow-hidden bg-background pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pl-[calc(env(safe-area-inset-left)+1.25rem)] pr-[calc(env(safe-area-inset-right)+1.25rem)] pt-[calc(env(safe-area-inset-top)+1.25rem)] text-foreground sm:pl-[calc(env(safe-area-inset-left)+1.5rem)] sm:pr-[calc(env(safe-area-inset-right)+1.5rem)]">
       <div className="valence-squiggle right-[-4rem] top-12 rotate-[35deg]" />
       <SparkMark className="absolute right-[17%] top-[24%] size-12" />
       <section className="mx-auto flex max-w-md flex-col gap-6">
@@ -875,21 +880,21 @@ function LoginScreen({ versions }: { versions: VersionState }) {
           <BrandLogo />
           <button
             aria-label="Valence assistant"
-            className="flex size-14 items-center justify-center rounded-2xl border border-border bg-white/84 shadow-sm backdrop-blur"
+            className="flex size-11 items-center justify-center rounded-[1.15rem] border border-border bg-white/84 shadow-sm backdrop-blur"
             type="button"
           >
-            <SparkMark className="size-6" />
+            <SparkMark className="size-5" />
           </button>
         </div>
 
-        <div className="pt-14">
+        <div className="pt-10">
           <span className="inline-flex rounded-full bg-[var(--valence-purple-soft)] px-4 py-1.5 text-sm font-extrabold text-primary">
             your mental wellness companion
           </span>
-          <h1 className="mt-7 text-6xl font-semibold leading-[0.94]">
+          <h1 className="mt-6 text-4xl font-semibold leading-[0.98]">
             Welcome back
           </h1>
-          <p className="mt-5 max-w-sm text-xl leading-8 text-muted-foreground">
+          <p className="mt-4 max-w-sm text-lg leading-7 text-muted-foreground">
             Continue your journey toward balance, clarity, and well-being.
           </p>
         </div>
@@ -902,7 +907,7 @@ function LoginScreen({ versions }: { versions: VersionState }) {
             <Mail className="absolute left-5 top-1/2 size-5 -translate-y-1/2 text-primary" />
             <Input
               autoComplete="email"
-              className="h-16 rounded-[1.35rem] border-border bg-white/86 pl-14 text-lg shadow-sm"
+              className="h-14 rounded-[1.2rem] border-border bg-white/86 pl-14 text-base shadow-sm"
               id="member-email"
               name="email"
               onChange={(event) => setEmail(event.currentTarget.value)}
@@ -913,7 +918,7 @@ function LoginScreen({ versions }: { versions: VersionState }) {
             />
           </div>
           <Button
-            className="valence-brand-button h-16 rounded-[1.35rem] text-xl font-extrabold"
+            className="valence-brand-button h-14 rounded-[1.2rem] text-lg font-extrabold"
             disabled={isSubmitting}
             type="submit"
           >
@@ -928,7 +933,7 @@ function LoginScreen({ versions }: { versions: VersionState }) {
             <span className="h-px bg-border" />
           </div>
   <Button
-            className="h-14 rounded-[1.25rem] border-border bg-white/86 text-lg font-extrabold"
+            className="h-12 rounded-[1.15rem] border-border bg-white/86 text-base font-extrabold"
             onClick={() => void continueWithProvider("google")}
             type="button"
             variant="outline"
@@ -937,7 +942,7 @@ function LoginScreen({ versions }: { versions: VersionState }) {
             Continue with Google
           </Button>
           <Button
-            className="h-14 rounded-[1.25rem] border-border bg-white/86 text-lg font-extrabold"
+            className="h-12 rounded-[1.15rem] border-border bg-white/86 text-base font-extrabold"
             onClick={() => void continueWithProvider("apple")}
             type="button"
             variant="outline"
@@ -969,7 +974,7 @@ function LoginScreen({ versions }: { versions: VersionState }) {
             </p>
           </div>
           <Mascot
-            className="absolute bottom-[-1.25rem] right-[-0.75rem] size-24"
+            className="absolute bottom-[-1.25rem] right-[-0.75rem] size-20"
             tone="yellow"
           />
         </div>
@@ -997,6 +1002,10 @@ function WorkspaceShell({
   const email = user.email ?? "Member";
   const [messagesOpen, setMessagesOpen] = useState(false);
   const activeNav = pageItems[activePage];
+  const activeNavIndex = Math.max(
+    0,
+    navItems.findIndex((item) => item.page === activePage)
+  );
 
   function handleNavigate(event: MouseEvent<HTMLAnchorElement>, page: PageKey) {
     event.preventDefault();
@@ -1055,7 +1064,7 @@ function WorkspaceShell({
       </div>
 
       <main className="min-w-0 lg:col-start-2">
-        <header className="fixed left-[env(safe-area-inset-left)] right-[env(safe-area-inset-right)] top-0 z-50 flex min-h-[calc(5.5rem+env(safe-area-inset-top))] items-end justify-between border-b border-border/60 bg-background/88 px-5 pb-4 pt-[calc(env(safe-area-inset-top)+0.9rem)] backdrop-blur-xl sm:px-6 lg:left-[calc(18rem+env(safe-area-inset-left))] lg:min-h-20 lg:px-8 lg:pt-0">
+        <header className="fixed left-[env(safe-area-inset-left)] right-[env(safe-area-inset-right)] top-0 z-50 flex min-h-[calc(4.25rem+env(safe-area-inset-top))] items-end justify-between border-b border-border/60 bg-background/88 px-5 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.65rem)] backdrop-blur-xl sm:px-6 lg:left-[calc(18rem+env(safe-area-inset-left))] lg:min-h-16 lg:px-8 lg:pt-0">
           <BrandLogo className="lg:hidden" size="sm" />
           <div className="hidden lg:block">
             <p className="text-sm font-extrabold">{activeNav?.label}</p>
@@ -1065,23 +1074,31 @@ function WorkspaceShell({
           </div>
           <button
             aria-label="Open messages"
-            className="flex size-14 items-center justify-center rounded-2xl border border-border bg-white/84 shadow-sm backdrop-blur"
+            className="flex size-11 items-center justify-center rounded-[1.15rem] border border-border bg-white/84 shadow-sm backdrop-blur"
             onClick={() => setMessagesOpen(true)}
             type="button"
           >
-            <SparkMark className="size-6" />
+            <SparkMark className="size-5" />
           </button>
         </header>
-        <div className="pb-[calc(7.5rem+env(safe-area-inset-bottom))] pt-[calc(5.5rem+env(safe-area-inset-top))] lg:pb-0 lg:pt-20">
+        <div className="pb-[calc(6.75rem+env(safe-area-inset-bottom))] pt-[calc(4.25rem+env(safe-area-inset-top))] lg:pb-0 lg:pt-16">
           {children}
         </div>
       </main>
 
       <nav
         aria-label="Primary"
-        className="fixed bottom-[calc(0.7rem+env(safe-area-inset-bottom))] left-[calc(0.75rem+env(safe-area-inset-left))] right-[calc(0.75rem+env(safe-area-inset-right))] z-40 lg:hidden"
+        className="fixed bottom-[calc(0.55rem+env(safe-area-inset-bottom))] left-[calc(0.75rem+env(safe-area-inset-left))] right-[calc(0.75rem+env(safe-area-inset-right))] z-40 lg:hidden"
       >
-        <div className="mx-auto grid max-w-md grid-cols-4 gap-0.5 rounded-[2rem] border border-border bg-white/90 p-1.5 shadow-[0_18px_55px_rgba(24,27,34,0.16)] backdrop-blur-xl">
+        <div className="relative mx-auto grid max-w-sm grid-cols-4 rounded-[1.7rem] border border-border bg-white/92 p-1.5 shadow-[0_18px_55px_rgba(24,27,34,0.16)] backdrop-blur-xl">
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute bottom-1.5 left-1.5 top-1.5 z-0 rounded-[1.35rem] bg-[var(--valence-purple-soft)] transition-transform duration-300 ease-out"
+            style={{
+              transform: `translateX(${activeNavIndex * 100}%)`,
+              width: "calc((100% - 0.75rem) / 4)"
+            }}
+          />
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = item.page === activePage;
@@ -1090,9 +1107,9 @@ function WorkspaceShell({
               <a
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "flex min-h-16 flex-col items-center justify-center gap-1 rounded-[1.55rem] px-1 text-[0.62rem] font-extrabold leading-none transition-all duration-200 active:scale-[0.97]",
+                  "relative z-10 flex min-h-13 flex-col items-center justify-center gap-1 rounded-[1.35rem] px-1 text-[0.58rem] font-extrabold leading-none transition-all duration-200 active:scale-[0.97]",
                   isActive
-                    ? "bg-[var(--valence-purple-soft)] text-primary"
+                    ? "text-primary"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
                 href={item.href}
@@ -1150,11 +1167,11 @@ function HomePage({
       mascot={<Mascot className="size-28" tone="yellow" />}
       title="How are you feeling right now?"
     >
-      <div className="grid grid-cols-5 gap-3 overflow-x-auto pb-1">
+      <div className="grid grid-cols-5 gap-2.5 overflow-x-auto pb-1">
         {moods.map((mood) => (
           <button
             className={cn(
-              "flex min-w-24 flex-col items-center gap-2 rounded-[1.35rem] border bg-white p-3 text-sm font-extrabold shadow-sm transition active:scale-[0.97]",
+              "flex min-w-20 flex-col items-center gap-2 rounded-[1.2rem] border bg-white p-2.5 text-xs font-extrabold shadow-sm transition active:scale-[0.97]",
               mood.active
                 ? "border-primary shadow-[0_0_0_2px_rgba(104,51,244,0.2)]"
                 : "border-border"
@@ -1164,7 +1181,7 @@ function HomePage({
           >
             <span
               className={cn(
-                "grid size-12 place-items-center rounded-full text-xl",
+                "grid size-10 place-items-center rounded-full text-lg",
                 mood.tone
               )}
             >
@@ -1175,15 +1192,15 @@ function HomePage({
         ))}
       </div>
 
-      <div className="valence-panel rounded-[1.6rem] p-5">
-        <h2 className="text-2xl font-semibold">How stressed do you feel?</h2>
+      <div className="valence-panel rounded-[1.45rem] p-4">
+        <h2 className="text-xl font-semibold">How stressed do you feel?</h2>
         <p className="mt-1 text-sm font-semibold text-muted-foreground">
           On a scale of 0 to 10
         </p>
         <div className="mt-8">
           <div className="relative h-3 rounded-full bg-muted">
             <div className="h-full w-[60%] rounded-full bg-primary" />
-            <span className="absolute left-[60%] top-1/2 grid size-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-primary bg-white text-sm font-black text-primary shadow-md">
+            <span className="absolute left-[60%] top-1/2 grid size-9 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-primary bg-white text-sm font-black text-primary shadow-md">
               6
             </span>
           </div>
@@ -1199,7 +1216,7 @@ function HomePage({
       </div>
 
       <div>
-        <h2 className="text-3xl font-semibold">What is on your mind?</h2>
+        <h2 className="text-2xl font-semibold">What is on your mind?</h2>
         <p className="mt-1 font-semibold text-muted-foreground">
           Select all that apply
         </p>
@@ -1207,7 +1224,7 @@ function HomePage({
           {topics.map(([label, Icon], index) => (
             <button
               className={cn(
-                "flex h-14 items-center justify-center gap-3 rounded-2xl border bg-white/86 text-sm font-extrabold shadow-sm",
+                "flex h-12 items-center justify-center gap-2.5 rounded-[1.1rem] border bg-white/86 text-sm font-extrabold shadow-sm",
                 index === 1 ? "border-primary text-foreground" : "border-border"
               )}
               key={label}
@@ -1221,20 +1238,20 @@ function HomePage({
       </div>
 
       <div>
-        <h2 className="text-2xl font-semibold">Notes</h2>
-        <div className="mt-3 rounded-[1.35rem] border border-border bg-white/88 p-5 text-muted-foreground shadow-sm">
+        <h2 className="text-xl font-semibold">Notes</h2>
+        <div className="mt-3 rounded-[1.2rem] border border-border bg-white/88 p-4 text-sm text-muted-foreground shadow-sm">
           Add a few notes about how you are feeling&hellip;
           <p className="mt-6 text-right text-sm font-extrabold">0/200</p>
         </div>
       </div>
 
-      <Button className="valence-brand-button h-16 rounded-[1.35rem] text-xl font-extrabold">
+      <Button className="valence-brand-button h-14 rounded-[1.2rem] text-lg font-extrabold">
         Save check-in
       </Button>
 
-      <div className="valence-panel flex items-center justify-between gap-4 rounded-[1.5rem] p-5">
+      <div className="valence-panel flex items-center justify-between gap-3 rounded-[1.35rem] p-4">
         <div className="flex items-center gap-3">
-          <span className="grid size-12 place-items-center rounded-2xl bg-[var(--valence-purple-soft)] text-primary">
+          <span className="grid size-10 place-items-center rounded-[1.1rem] bg-[var(--valence-purple-soft)] text-primary">
             <Bell className="size-5" />
           </span>
           <div>
@@ -1266,25 +1283,25 @@ function ExercisesPage() {
       mascot={<SparkMark className="size-14" />}
       title="Exercises"
     >
-      <div className="valence-panel relative overflow-hidden rounded-[1.65rem] p-6">
-        <SparkMark className="mb-5 size-9" />
-        <p className="max-w-md text-2xl font-semibold leading-10">
+      <div className="valence-panel relative overflow-hidden rounded-[1.5rem] p-5">
+        <SparkMark className="mb-4 size-8" />
+        <p className="max-w-md text-xl font-semibold leading-8">
           Today I took time for myself. I went for a walk, stayed off my phone,
           and just breathed.
         </p>
-        <div className="mt-8 flex items-center justify-between">
+        <div className="mt-6 flex items-center justify-between">
           <p className="font-semibold text-muted-foreground">
             Today, 9:30 PM
           </p>
           <button
-            className="grid size-12 place-items-center rounded-2xl border border-border bg-white text-primary"
+            className="grid size-10 place-items-center rounded-[1.1rem] border border-border bg-white text-primary"
             type="button"
           >
             <PenLine className="size-5" />
           </button>
         </div>
         <Mascot
-          className="absolute bottom-[-1.5rem] right-6 size-24"
+          className="absolute bottom-[-1.5rem] right-6 size-20"
           tone="yellow"
         />
       </div>
@@ -1320,14 +1337,14 @@ function ExercisesPage() {
 
           return (
             <button
-              className="valence-panel flex items-center justify-between rounded-[1.35rem] p-5 text-left transition active:scale-[0.98]"
+              className="valence-panel flex items-center justify-between rounded-[1.25rem] p-4 text-left transition active:scale-[0.98]"
               key={exercise.title}
               type="button"
             >
               <span className="flex items-center gap-4">
                 <span
                   className={cn(
-                    "grid size-13 place-items-center rounded-2xl text-white",
+                    "grid size-11 place-items-center rounded-[1.1rem] text-white",
                     exercise.tone === "purple" && "valence-purple-surface",
                     exercise.tone === "yellow" && "bg-[var(--valence-yellow)] text-foreground",
                     exercise.tone === "orange" && "bg-[var(--valence-orange)]"
@@ -1336,7 +1353,7 @@ function ExercisesPage() {
                   <Icon className="size-5" />
                 </span>
                 <span>
-                  <span className="block text-lg font-black">
+                  <span className="block text-base font-black">
                     {exercise.title}
                   </span>
                   <span className="mt-1 block text-sm font-semibold leading-6 text-muted-foreground">
@@ -1350,7 +1367,7 @@ function ExercisesPage() {
         })}
       </div>
 
-      <Button className="valence-brand-button h-16 rounded-[1.35rem] text-xl font-extrabold">
+      <Button className="valence-brand-button h-14 rounded-[1.2rem] text-lg font-extrabold">
         <PenLine className="size-5" />
         New entry
       </Button>
@@ -1413,25 +1430,25 @@ function SessionsPage() {
       mascot={<Mascot className="size-32" tone="yellow" />}
       title="Sessions"
     >
-      <div className="grid grid-cols-2 rounded-[1.5rem] border border-border bg-white p-1.5 shadow-sm">
+      <div className="grid grid-cols-2 rounded-[1.35rem] border border-border bg-white p-1.5 shadow-sm">
         <button
-          className="valence-brand-button h-13 rounded-[1.1rem] text-lg font-extrabold text-white"
+          className="valence-brand-button h-11 rounded-[1rem] text-base font-extrabold text-white"
           type="button"
         >
           Month
         </button>
-        <button className="h-13 rounded-[1.1rem] text-lg font-extrabold" type="button">
+        <button className="h-11 rounded-[1rem] text-base font-extrabold" type="button">
           Week
         </button>
       </div>
 
-      <div className="valence-panel rounded-[1.65rem] p-5">
+      <div className="valence-panel rounded-[1.5rem] p-4">
         <div className="flex items-center justify-between">
           <ChevronRight className="size-6 rotate-180" />
-          <h2 className="text-3xl font-semibold">May 2025</h2>
+          <h2 className="text-2xl font-semibold">May 2025</h2>
           <ChevronRight className="size-6" />
         </div>
-        <div className="mt-7 grid grid-cols-7 gap-y-5 text-center">
+        <div className="mt-6 grid grid-cols-7 gap-y-4 text-center">
           {weekdays.map((day) => (
             <span
               className="text-xs font-black text-muted-foreground"
@@ -1444,12 +1461,12 @@ function SessionsPage() {
             const isSelected = date.id === "may-14";
             return (
               <span
-                className="relative grid min-h-11 place-items-center text-xl font-bold"
+                className="relative grid min-h-10 place-items-center text-lg font-bold"
                 key={date.id}
               >
                 <span
                   className={cn(
-                    "grid size-11 place-items-center rounded-full",
+                    "grid size-10 place-items-center rounded-full",
                     isSelected && "bg-primary text-white shadow-lg shadow-primary/25"
                   )}
                 >
@@ -1464,14 +1481,14 @@ function SessionsPage() {
         </div>
       </div>
 
-      <div className="valence-panel rounded-[1.65rem] p-5">
+      <div className="valence-panel rounded-[1.5rem] p-4">
         <p className="text-lg font-black">Next appointment</p>
-        <div className="mt-4 flex items-center gap-4">
-          <span className="grid size-16 place-items-center rounded-full bg-[var(--valence-purple-soft)] text-primary">
-            <UserRound className="size-8" />
+        <div className="mt-4 flex items-center gap-3">
+          <span className="grid size-12 shrink-0 place-items-center rounded-full bg-[var(--valence-purple-soft)] text-primary">
+            <UserRound className="size-6" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-xl font-black">Dr. Emma Lin</p>
+            <p className="text-lg font-black">Dr. Emma Lin</p>
             <p className="font-semibold text-muted-foreground">
               Clinical Psychologist
             </p>
@@ -1479,25 +1496,25 @@ function SessionsPage() {
               Tomorrow, May 15 at 10:00 AM
             </p>
           </div>
-          <button className="grid size-12 place-items-center rounded-full border border-border bg-white text-primary" type="button">
-            <Video className="size-5" />
+          <button className="grid size-9 shrink-0 place-items-center rounded-full border border-border bg-white text-primary" type="button">
+            <Video className="size-4" />
           </button>
-          <button className="grid size-12 place-items-center rounded-full border border-border bg-white text-primary" type="button">
-            <Phone className="size-5" />
+          <button className="grid size-9 shrink-0 place-items-center rounded-full border border-border bg-white text-primary" type="button">
+            <Phone className="size-4" />
           </button>
         </div>
       </div>
 
-      <div className="valence-purple-surface relative overflow-hidden rounded-[1.65rem] p-6 text-white">
-        <p className="text-4xl font-black">Dr. Emma Lin</p>
-        <p className="mt-2 text-xl font-semibold text-white/90">
+      <div className="valence-purple-surface relative overflow-hidden rounded-[1.5rem] p-5 text-white">
+        <p className="text-3xl font-black">Dr. Emma Lin</p>
+        <p className="mt-2 text-lg font-semibold text-white/90">
           Clinical Psychologist
         </p>
-        <p className="mt-4 flex items-center gap-2 text-2xl font-bold">
+        <p className="mt-4 flex items-center gap-2 text-xl font-bold">
           <span className="size-3 rounded-full bg-[var(--valence-orange)]" />
           00:24
         </p>
-        <div className="mt-9 grid grid-cols-4 gap-4">
+        <div className="mt-7 grid grid-cols-4 gap-3">
           {[
             ["Mute", Mic],
             ["Video", Video],
@@ -1509,7 +1526,7 @@ function SessionsPage() {
               key={label as string}
               type="button"
             >
-              <span className="grid size-14 place-items-center rounded-full bg-white/18">
+              <span className="grid size-12 place-items-center rounded-full bg-white/18">
                 <Icon className="size-5" />
               </span>
               {label as string}
@@ -1517,12 +1534,12 @@ function SessionsPage() {
           ))}
         </div>
         <Mascot
-          className="absolute bottom-5 right-7 size-20"
+          className="absolute bottom-5 right-7 size-16"
           tone="purple"
         />
       </div>
 
-      <Button className="valence-brand-button h-16 rounded-[1.35rem] text-xl font-extrabold">
+      <Button className="valence-brand-button h-14 rounded-[1.2rem] text-lg font-extrabold">
         <CalendarDays className="size-5" />
         Book new session
       </Button>
@@ -1568,7 +1585,7 @@ function MessagesPage({ mode = "page" }: { mode?: "drawer" | "page" }) {
   return (
     <section
       className={cn(
-        "flex flex-col gap-5",
+        "flex flex-col gap-4",
         isDrawer
           ? "h-full min-h-0 px-1 pb-0 pt-0"
           : "mx-auto max-w-3xl px-5 pb-8 pt-3 sm:px-6 lg:px-8"
@@ -1576,22 +1593,22 @@ function MessagesPage({ mode = "page" }: { mode?: "drawer" | "page" }) {
     >
       <div
         className={cn(
-          "z-20 flex shrink-0 items-center gap-3 rounded-[1.5rem] border border-border bg-white/90 p-3 shadow-sm backdrop-blur",
-          !isDrawer && "sticky top-[calc(5rem+env(safe-area-inset-top))]"
+          "z-20 flex shrink-0 items-center gap-3 rounded-[1.35rem] border border-border bg-white/90 p-3 shadow-sm backdrop-blur",
+          !isDrawer && "sticky top-[calc(4.25rem+env(safe-area-inset-top))]"
         )}
       >
-        <span className="grid size-14 place-items-center rounded-full bg-[var(--valence-purple-soft)] text-primary">
-          <UserRound className="size-7" />
+        <span className="grid size-12 place-items-center rounded-full bg-[var(--valence-purple-soft)] text-primary">
+          <UserRound className="size-6" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-xl font-black">Dr. Emma Lin</p>
+          <p className="text-lg font-black">Dr. Emma Lin</p>
           <p className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
             <span className="size-3 rounded-full bg-emerald-500" />
             Active now
           </p>
         </div>
         <button
-          className="grid size-12 place-items-center rounded-2xl border border-border bg-white"
+          className="grid size-10 place-items-center rounded-[1.1rem] border border-border bg-white"
           type="button"
         >
           <Phone className="size-5" />
@@ -1612,14 +1629,14 @@ function MessagesPage({ mode = "page" }: { mode?: "drawer" | "page" }) {
           {messages.map((message) => (
             <div
               className={cn(
-                "max-w-[82%] rounded-[1.45rem] p-5 shadow-sm",
+                "max-w-[82%] rounded-[1.3rem] p-4 shadow-sm",
                 message.mine
                   ? "valence-purple-surface ml-auto text-white"
                   : "valence-panel text-foreground"
               )}
               key={message.id}
             >
-              <p className="text-lg font-semibold leading-8">{message.body}</p>
+              <p className="text-base font-semibold leading-7">{message.body}</p>
               <p
                 className={cn(
                   "mt-3 text-sm font-bold",
@@ -1660,16 +1677,16 @@ function MessagesPage({ mode = "page" }: { mode?: "drawer" | "page" }) {
         )}
       >
         <button
-          className="valence-brand-button grid size-14 place-items-center rounded-full text-white"
+          className="valence-brand-button grid size-12 place-items-center rounded-full text-white"
           type="button"
         >
           +
         </button>
-        <div className="flex h-14 min-w-0 flex-1 items-center rounded-full border border-border bg-white px-5 text-muted-foreground shadow-sm">
+        <div className="flex h-12 min-w-0 flex-1 items-center rounded-full border border-border bg-white px-5 text-sm text-muted-foreground shadow-sm">
           Write a message&hellip;
         </div>
         <button
-          className="valence-brand-button grid size-14 place-items-center rounded-full text-white"
+          className="valence-brand-button grid size-12 place-items-center rounded-full text-white"
           type="button"
         >
           <Send className="size-5" />
@@ -1704,11 +1721,11 @@ function ProfilePage({
     >
       <div className="flex flex-col items-center text-center">
         <div className="relative">
-          <span className="grid size-32 place-items-center rounded-full bg-[var(--valence-purple-soft)] text-primary shadow-sm">
-            <UserRound className="size-16" />
+          <span className="grid size-28 place-items-center rounded-full bg-[var(--valence-purple-soft)] text-primary shadow-sm">
+            <UserRound className="size-14" />
           </span>
           <button
-            className="absolute bottom-1 right-0 grid size-12 place-items-center rounded-full bg-white text-primary shadow-lg"
+            className="absolute bottom-1 right-0 grid size-10 place-items-center rounded-full bg-white text-primary shadow-lg"
             type="button"
           >
             <PenLine className="size-5" />
@@ -1719,26 +1736,26 @@ function ProfilePage({
         </p>
       </div>
 
-      <div className="valence-purple-surface flex items-center gap-5 overflow-hidden rounded-[1.65rem] p-5 text-white">
-        <Mascot className="size-24 shrink-0" tone="yellow" />
+      <div className="valence-purple-surface flex items-center gap-4 overflow-hidden rounded-[1.5rem] p-4 text-white">
+        <Mascot className="size-20 shrink-0" tone="yellow" />
         <div className="min-w-0 flex-1">
-          <p className="text-3xl font-black">12-day streak</p>
-          <p className="mt-1 text-lg font-semibold text-white/90">
+          <p className="text-2xl font-black">12-day streak</p>
+          <p className="mt-1 text-base font-semibold text-white/90">
             You logged your mood 12 days in a row
           </p>
         </div>
-        <ChevronRight className="size-7" />
+        <ChevronRight className="size-6" />
       </div>
 
-      <div className="valence-panel rounded-[1.65rem] p-5">
+      <div className="valence-panel rounded-[1.5rem] p-4">
         <div className="flex justify-between">
-          <h2 className="text-2xl font-semibold">Your progress</h2>
-          <p className="text-xl font-black text-primary">5 / 7</p>
+          <h2 className="text-xl font-semibold">Your progress</h2>
+          <p className="text-lg font-black text-primary">5 / 7</p>
         </div>
         <p className="mt-3 font-extrabold text-primary">
           Journal days this week
         </p>
-        <div className="mt-5 grid grid-cols-7 gap-3 text-center">
+        <div className="mt-4 grid grid-cols-7 gap-2 text-center">
           {[
             { day: "M", id: "monday" },
             { day: "T", id: "tuesday" },
@@ -1751,7 +1768,7 @@ function ProfilePage({
             <span className="grid gap-2" key={day.id}>
               <span
                 className={cn(
-                  "grid size-10 place-items-center rounded-full border text-white",
+                  "grid size-9 place-items-center rounded-full border text-white",
                   index < 5
                     ? "border-primary bg-primary"
                     : "border-border bg-white text-transparent"
@@ -1767,16 +1784,16 @@ function ProfilePage({
         </div>
       </div>
 
-      <div className="valence-panel overflow-hidden rounded-[1.65rem]">
+      <div className="valence-panel overflow-hidden rounded-[1.5rem]">
         {settings.map(([title, detail, Icon, tone]) => (
           <button
-            className="flex w-full items-center gap-4 border-b border-border/80 p-5 text-left last:border-b-0"
+            className="flex w-full items-center gap-3 border-b border-border/80 p-4 text-left last:border-b-0"
             key={title}
             type="button"
           >
             <span
               className={cn(
-                "grid size-13 place-items-center rounded-2xl",
+                "grid size-11 place-items-center rounded-[1.1rem]",
                 tone === "purple" && "bg-primary text-white",
                 tone === "orange" && "bg-[var(--valence-orange)] text-white",
                 tone === "yellow" && "bg-[var(--valence-yellow)] text-foreground",
@@ -1784,10 +1801,10 @@ function ProfilePage({
                 tone === "white" && "bg-muted text-foreground"
               )}
             >
-              <Icon className="size-6" />
+              <Icon className="size-5" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-lg font-black">{title}</span>
+              <span className="block text-base font-black">{title}</span>
               <span className="mt-1 block text-sm font-semibold leading-5 text-muted-foreground">
                 {detail}
               </span>
@@ -1935,8 +1952,10 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
       return;
     }
 
+    dispatchNativeUpdate({ type: "dismiss" });
     await CapacitorUpdater.cancelDelay();
-    await CapacitorUpdater.set({ id: nativeUpdate.bundle.id });
+    await scheduleNativeUpdateForNextLaunch(nativeUpdate.bundle);
+    await CapacitorUpdater.reload();
   }
 
   useEffect(() => {
