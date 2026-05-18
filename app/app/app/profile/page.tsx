@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import { AppAuthExperience } from "@/components/app-auth-experience";
 
 export const metadata: Metadata = {
-  title: "Profile | Valence App",
-  description: "Profile and app version details for Valence members"
+  title: "Actividad | Valence App",
+  description: "Patient activity timeline and therapist app details"
 };
 
 export default function ProfilePage() {

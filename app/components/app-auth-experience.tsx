@@ -26,28 +26,23 @@ import {
   Activity,
   Apple,
   Bell,
-  CalendarDays,
+  Brain,
   Check,
   ChevronRight,
+  Clock,
   ClipboardList,
   CloudDownload,
-  CreditCard,
-  Dumbbell,
-  Heart,
-  Home,
+  FileText,
   LogOut,
   Mail,
   MessageCircle,
-  Mic,
-  MoreHorizontal,
   PenLine,
   Phone,
   Send,
-  ShieldCheck,
   Sparkles,
   Target,
   UserRound,
-  Video,
+  UsersRound,
   type LucideIcon
 } from "lucide-react";
 import packageJson from "@/package.json";
@@ -144,24 +139,24 @@ const pageItems: Record<
   }
 > = {
   home: {
-    description: "Mood check-in",
+    description: "Clinical patient profile",
     href: `${appRouteBasePath}/`,
-    icon: Home,
-    label: "Home",
+    icon: UserRound,
+    label: "Perfil",
     page: "home"
   },
   exercises: {
-    description: "Guided exercises",
+    description: "Clinical snapshot",
     href: `${appRouteBasePath}/exercises/`,
-    icon: Dumbbell,
-    label: "Exercises",
+    icon: Activity,
+    label: "Seguimiento",
     page: "exercises"
   },
   sessions: {
-    description: "Appointments",
+    description: "Clinical coach",
     href: `${appRouteBasePath}/sessions/`,
-    icon: CalendarDays,
-    label: "Sessions",
+    icon: Brain,
+    label: "Coach",
     page: "sessions"
   },
   messages: {
@@ -172,10 +167,10 @@ const pageItems: Record<
     page: "messages"
   },
   profile: {
-    description: "Progress and settings",
+    description: "Patient activity",
     href: `${appRouteBasePath}/profile/`,
-    icon: UserRound,
-    label: "Profile",
+    icon: ClipboardList,
+    label: "Actividad",
     page: "profile"
   }
 };
@@ -556,6 +551,42 @@ function useAppVersions(): VersionState {
   return versions;
 }
 
+function useClinicianRealtimeEvents(user: User | null) {
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const [eventCount, setEventCount] = useState(3);
+  const [lastEvent, setLastEvent] = useState("Sofía updated her check-in");
+
+  useEffect(() => {
+    if (!supabase || !user) {
+      return () => {};
+    }
+
+    const channel = supabase
+      .channel(`therapist-platform:${user.id}`)
+      .on(
+        "broadcast",
+        { event: "patient_activity" },
+        (payload) => {
+          const label =
+            typeof payload.payload?.title === "string"
+              ? payload.payload.title
+              : "New patient activity";
+
+          setLastEvent(label);
+          setEventCount((count) => count + 1);
+        }
+      );
+
+    channel.subscribe();
+
+    return () => {
+      void channel.unsubscribe();
+    };
+  }, [supabase, user]);
+
+  return { eventCount, lastEvent };
+}
+
 function getVisibleReleaseVersion(
   bundleId: string | null | undefined,
   bundleVersion: string | null | undefined
@@ -635,13 +666,13 @@ function PageChrome({
 }) {
   return (
     <section className="relative mx-auto flex max-w-5xl flex-col gap-4 overflow-hidden px-5 pb-8 pt-4 sm:px-6 lg:px-8">
-      <div className="pointer-events-none absolute right-[-3rem] top-8 hidden size-36 rounded-full bg-[var(--valence-yellow)]/75 sm:block" />
+      <div className="pointer-events-none absolute right-[-3rem] top-8 hidden size-36 rounded-full bg-[var(--valence-pink)]/20 sm:block" />
       <div className="pointer-events-none absolute right-8 top-16 hidden sm:block">
         {mascot}
       </div>
       <div className="relative">
         {eyebrow ? (
-          <span className="inline-flex rounded-full bg-[var(--valence-purple-soft)] px-4 py-1.5 text-sm font-extrabold text-primary">
+          <span className="inline-flex rounded-full bg-[var(--valence-teal-soft)] px-4 py-1.5 text-sm font-extrabold text-primary">
             {eyebrow}
           </span>
         ) : null}
@@ -667,7 +698,7 @@ function VersionBadge({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-border bg-white/82 px-3 py-2 text-xs leading-5 text-muted-foreground shadow-sm backdrop-blur",
+        "rounded-2xl border border-border bg-card/82 px-3 py-2 text-xs leading-5 text-muted-foreground shadow-sm backdrop-blur",
         className
       )}
     >
@@ -688,7 +719,7 @@ function ProviderMark({
   label: string;
 }) {
   return (
-    <span className="flex size-7 items-center justify-center rounded-xl border border-border bg-white text-sm font-black">
+    <span className="flex size-7 items-center justify-center rounded-xl border border-border bg-card text-sm font-black">
       {Icon ? <Icon className="size-4" /> : label}
     </span>
   );
@@ -766,15 +797,15 @@ function MessagesDrawer({
       <DrawerContent className="mx-auto flex h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] max-w-3xl flex-col overflow-hidden rounded-t-[2rem] border-border bg-background px-[calc(env(safe-area-inset-left)+1rem)] pb-[calc(env(safe-area-inset-bottom)+1rem)] pr-[calc(env(safe-area-inset-right)+1rem)] pt-4">
         <DrawerHeader className="shrink-0 px-1 pb-3 pt-1 text-left">
           <div className="flex items-center gap-3">
-            <span className="grid size-10 place-items-center rounded-[1.1rem] bg-[var(--valence-purple-soft)] text-primary">
+            <span className="grid size-10 place-items-center rounded-[1.1rem] bg-[var(--valence-teal-soft)] text-primary">
               <MessageCircle className="size-5" />
             </span>
             <div className="min-w-0 flex-1">
               <DrawerTitle className="text-xl font-black">
-                Messages
+                Coach
               </DrawerTitle>
               <DrawerDescription className="mt-0.5">
-                Dr. Emma Lin is active now.
+                Clinical prompts and patient context are ready.
               </DrawerDescription>
             </div>
           </div>
@@ -797,7 +828,7 @@ function SplashScreen({ versions }: { versions: VersionState }) {
       <section className="flex flex-col items-center text-center">
         <BrandLogo size="lg" />
         <p className="mt-5 text-2xl font-semibold text-foreground">
-          Mental health with clarity.
+          Therapist platform.
         </p>
         <Mascot className="mt-36 size-20" tone="purple" />
         <span className="valence-spinner mt-9 size-10" />
@@ -873,33 +904,70 @@ function LoginScreen({ versions }: { versions: VersionState }) {
 
   return (
     <main className="valence-auth-scene relative min-h-dvh overflow-hidden bg-background pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pl-[calc(env(safe-area-inset-left)+1.25rem)] pr-[calc(env(safe-area-inset-right)+1.25rem)] pt-[calc(env(safe-area-inset-top)+1.25rem)] text-foreground sm:pl-[calc(env(safe-area-inset-left)+1.5rem)] sm:pr-[calc(env(safe-area-inset-right)+1.5rem)]">
-      <div className="valence-squiggle right-[-4rem] top-12 rotate-[35deg]" />
-      <SparkMark className="absolute right-[17%] top-[24%] size-12" />
-      <section className="mx-auto flex max-w-md flex-col gap-6">
+      <div className="valence-squiggle right-[-4rem] top-10 rotate-[35deg]" />
+      <SparkMark className="absolute right-[14%] top-[21%] size-12 bg-[var(--valence-pink)]" />
+      <section className="mx-auto flex max-w-md flex-col gap-5">
         <div className="flex items-center justify-between">
           <BrandLogo />
           <button
-            aria-label="Valence assistant"
-            className="flex size-11 items-center justify-center rounded-[1.15rem] border border-border bg-white/84 shadow-sm backdrop-blur"
+            aria-label="Open therapist coach"
+            className="flex size-11 items-center justify-center rounded-[1.15rem] border border-border bg-card/88 shadow-sm backdrop-blur"
             type="button"
           >
-            <SparkMark className="size-5" />
+            <SparkMark className="size-5 bg-[var(--valence-pink)]" />
           </button>
         </div>
 
-        <div className="pt-10">
-          <span className="inline-flex rounded-full bg-[var(--valence-purple-soft)] px-4 py-1.5 text-sm font-extrabold text-primary">
-            your mental wellness companion
+        <div className="pt-8">
+          <span className="inline-flex rounded-full bg-[var(--valence-teal-soft)] px-4 py-1.5 text-sm font-extrabold text-primary">
+            therapist platform
           </span>
           <h1 className="mt-6 text-4xl font-semibold leading-[0.98]">
-            Welcome back
+            Set up your clinical workspace
           </h1>
-          <p className="mt-4 max-w-sm text-lg leading-7 text-muted-foreground">
-            Continue your journey toward balance, clarity, and well-being.
+          <p className="mt-4 max-w-sm text-base leading-7 text-muted-foreground">
+            Profile, agenda, patients, and clinical coach in one private flow.
           </p>
         </div>
 
-        <form className="grid gap-4" onSubmit={requestEmailAccess}>
+        <div className="valence-panel grid gap-3 rounded-[1.65rem] p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-black text-primary">Step 1</p>
+              <p className="text-lg font-black">Practice profile</p>
+            </div>
+            <span className="grid size-10 place-items-center rounded-full bg-[var(--valence-pink)] text-white">
+              <UsersRound className="size-5" />
+            </span>
+          </div>
+          <div className="grid gap-3">
+            <Input
+              className="valence-field h-12 rounded-[1rem] px-4 text-sm"
+              placeholder="Full name"
+              readOnly
+              value="Dra. Emma Lin"
+            />
+            <Input
+              className="valence-field h-12 rounded-[1rem] px-4 text-sm"
+              placeholder="Clinical approach"
+              readOnly
+              value="CBT, trauma-informed care"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              {["Online sessions", "In-person"].map((method) => (
+                <button
+                  className="rounded-[1rem] border border-border bg-[var(--valence-teal-soft)] p-3 text-left text-xs font-black text-foreground"
+                  key={method}
+                  type="button"
+                >
+                  {method}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <form className="grid gap-3" onSubmit={requestEmailAccess}>
           <Label className="sr-only" htmlFor="member-email">
             Email
           </Label>
@@ -907,11 +975,11 @@ function LoginScreen({ versions }: { versions: VersionState }) {
             <Mail className="absolute left-5 top-1/2 size-5 -translate-y-1/2 text-primary" />
             <Input
               autoComplete="email"
-              className="h-14 rounded-[1.2rem] border-border bg-white/86 pl-14 text-base shadow-sm"
+              className="valence-field h-14 rounded-[1.2rem] pl-14 text-base shadow-sm"
               id="member-email"
               name="email"
               onChange={(event) => setEmail(event.currentTarget.value)}
-              placeholder="Enter your email"
+              placeholder="Clinical email"
               required
               type="email"
               value={email}
@@ -922,18 +990,18 @@ function LoginScreen({ versions }: { versions: VersionState }) {
             disabled={isSubmitting}
             type="submit"
           >
-            {isSubmitting ? "Sending" : "Send code"}
+            {isSubmitting ? "Sending" : "Send secure code"}
           </Button>
         </form>
 
-        <div className="grid gap-4">
+        <div className="grid gap-3">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-5 text-muted-foreground">
             <span className="h-px bg-border" />
             <span className="font-semibold">or</span>
             <span className="h-px bg-border" />
           </div>
   <Button
-            className="h-12 rounded-[1.15rem] border-border bg-white/86 text-base font-extrabold"
+            className="h-12 rounded-[1.15rem] border-border bg-card/88 text-base font-extrabold"
             onClick={() => void continueWithProvider("google")}
             type="button"
             variant="outline"
@@ -942,7 +1010,7 @@ function LoginScreen({ versions }: { versions: VersionState }) {
             Continue with Google
           </Button>
           <Button
-            className="h-12 rounded-[1.15rem] border-border bg-white/86 text-base font-extrabold"
+            className="h-12 rounded-[1.15rem] border-border bg-card/88 text-base font-extrabold"
             onClick={() => void continueWithProvider("apple")}
             type="button"
             variant="outline"
@@ -959,18 +1027,18 @@ function LoginScreen({ versions }: { versions: VersionState }) {
         ) : null}
 
         {error ? (
-          <div className="rounded-[1.35rem] border border-border bg-white/86 p-4 text-sm font-semibold leading-6 text-muted-foreground">
+          <div className="rounded-[1.35rem] border border-border bg-card/88 p-4 text-sm font-semibold leading-6 text-muted-foreground">
             {error}
           </div>
         ) : null}
 
-        <div className="valence-panel relative mt-3 overflow-hidden rounded-[1.75rem] p-5">
+        <div className="valence-panel relative mt-1 overflow-hidden rounded-[1.75rem] p-5">
           <div className="relative z-10 max-w-[14rem]">
-            <p className="text-sm font-extrabold text-foreground">
-              Compassionate support
+            <p className="text-sm font-extrabold text-primary">
+              Realtime ready
             </p>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              A private space for sessions, reflection, and steady progress.
+              Patient events and coach notes are prepared for Supabase live sync.
             </p>
           </div>
           <Mascot
@@ -987,6 +1055,8 @@ function LoginScreen({ versions }: { versions: VersionState }) {
 function WorkspaceShell({
   activePage,
   children,
+  eventCount,
+  lastEvent,
   user,
   versions,
   onNavigate,
@@ -994,6 +1064,8 @@ function WorkspaceShell({
 }: {
   activePage: PageKey;
   children: ReactNode;
+  eventCount: number;
+  lastEvent: string;
   user: User;
   versions: VersionState;
   onNavigate: (page: PageKey) => void;
@@ -1013,7 +1085,7 @@ function WorkspaceShell({
   }
 
   const aside = (
-    <aside className="flex h-full w-72 flex-col border-r border-border bg-white/84 backdrop-blur">
+    <aside className="flex h-full w-72 flex-col border-r border-border bg-card/92 backdrop-blur">
       <div className="flex h-20 items-center border-b border-border px-5">
         <BrandLogo size="sm" />
       </div>
@@ -1027,7 +1099,7 @@ function WorkspaceShell({
               className={cn(
                 "flex h-12 items-center gap-3 rounded-2xl px-4 text-left text-sm font-extrabold transition-all",
                 isActive
-                  ? "bg-[var(--valence-purple-soft)] text-primary"
+                  ? "bg-[var(--valence-teal-soft)] text-primary"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
               href={item.href}
@@ -1041,7 +1113,7 @@ function WorkspaceShell({
         })}
       </nav>
       <div className="border-t border-border p-4">
-        <VersionBadge className="mb-3 bg-white" versions={versions} />
+        <VersionBadge className="mb-3 bg-card" versions={versions} />
         <p className="truncate text-sm font-extrabold">{email}</p>
         <Button
           className="mt-3 w-full justify-start rounded-2xl"
@@ -1064,7 +1136,7 @@ function WorkspaceShell({
       </div>
 
       <main className="min-w-0 lg:col-start-2">
-        <header className="fixed left-[env(safe-area-inset-left)] right-[env(safe-area-inset-right)] top-0 z-50 flex min-h-[calc(4.25rem+env(safe-area-inset-top))] items-end justify-between border-b border-border/60 bg-background/88 px-5 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.65rem)] backdrop-blur-xl sm:px-6 lg:left-[calc(18rem+env(safe-area-inset-left))] lg:min-h-16 lg:px-8 lg:pt-0">
+        <header className="fixed left-[env(safe-area-inset-left)] right-[env(safe-area-inset-right)] top-0 z-50 flex min-h-[calc(4.25rem+env(safe-area-inset-top))] items-end justify-between border-b border-border/60 bg-background/92 px-5 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.65rem)] backdrop-blur-xl sm:px-6 lg:left-[calc(18rem+env(safe-area-inset-left))] lg:min-h-16 lg:px-8 lg:pt-0">
           <BrandLogo className="lg:hidden" size="sm" />
           <div className="hidden lg:block">
             <p className="text-sm font-extrabold">{activeNav?.label}</p>
@@ -1072,13 +1144,19 @@ function WorkspaceShell({
               {activeNav?.description}
             </p>
           </div>
+          <div className="hidden min-w-0 flex-1 items-center justify-end gap-2 px-4 lg:flex">
+            <span className="size-2 rounded-full bg-primary" />
+            <p className="truncate text-xs font-bold text-muted-foreground">
+              {eventCount} live updates, {lastEvent}
+            </p>
+          </div>
           <button
             aria-label="Open messages"
-            className="flex size-11 items-center justify-center rounded-[1.15rem] border border-border bg-white/84 shadow-sm backdrop-blur"
+            className="flex size-11 items-center justify-center rounded-[1.15rem] border border-border bg-card/88 shadow-sm backdrop-blur"
             onClick={() => setMessagesOpen(true)}
             type="button"
           >
-            <SparkMark className="size-5" />
+            <SparkMark className="size-5 bg-[var(--valence-pink)]" />
           </button>
         </header>
         <div className="pb-[calc(6.75rem+env(safe-area-inset-bottom))] pt-[calc(4.25rem+env(safe-area-inset-top))] lg:pb-0 lg:pt-16">
@@ -1090,10 +1168,10 @@ function WorkspaceShell({
         aria-label="Primary"
         className="fixed bottom-[calc(0.55rem+env(safe-area-inset-bottom))] left-[calc(0.75rem+env(safe-area-inset-left))] right-[calc(0.75rem+env(safe-area-inset-right))] z-40 lg:hidden"
       >
-        <div className="relative mx-auto grid max-w-sm grid-cols-4 rounded-[1.7rem] border border-border bg-white/92 p-1.5 shadow-[0_18px_55px_rgba(24,27,34,0.16)] backdrop-blur-xl">
+        <div className="relative mx-auto grid max-w-sm grid-cols-4 rounded-[1.7rem] border border-border bg-card/94 p-1.5 shadow-[0_18px_55px_rgba(0,0,0,0.28)] backdrop-blur-xl">
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute bottom-1.5 left-1.5 top-1.5 z-0 rounded-[1.35rem] bg-[var(--valence-purple-soft)] transition-transform duration-300 ease-out"
+            className="pointer-events-none absolute bottom-1.5 left-1.5 top-1.5 z-0 rounded-[1.35rem] bg-[var(--valence-teal-soft)] transition-transform duration-300 ease-out"
             style={{
               transform: `translateX(${activeNavIndex * 100}%)`,
               width: "calc((100% - 0.75rem) / 4)"
@@ -1136,21 +1214,6 @@ function HomePage({
   pushRegistration: PushRegistrationState;
   onEnablePushNotifications: () => void;
 }) {
-  const moods = [
-    { label: "Great", tone: "bg-[#cbb4ff]" },
-    { label: "Good", tone: "bg-primary text-white", active: true },
-    { label: "Okay", tone: "bg-[#ffd6c0]" },
-    { label: "Low", tone: "bg-[var(--valence-orange)]" },
-    { label: "Struggling", tone: "bg-[#ff8a34]" }
-  ];
-  const topics = [
-    ["Sleep", Heart],
-    ["Work", ClipboardList],
-    ["Relationships", Heart],
-    ["Health", Activity],
-    ["Finances", CreditCard],
-    ["Other", MoreHorizontal]
-  ] as const;
   const pushDescription =
     pushRegistration.status === "registered"
       ? "This device is registered for Valence notifications."
@@ -1162,100 +1225,61 @@ function HomePage({
 
   return (
     <PageChrome
-      description="Take a moment to check in with yourself. Your feelings matter."
-      eyebrow="mood check-in"
-      mascot={<Mascot className="size-28" tone="yellow" />}
-      title="How are you feeling right now?"
+      description="The clinical profile combines onboarding answers, notes, and patient activity into one view."
+      eyebrow="patient profile"
+      mascot={<Mascot className="size-24" tone="purple" />}
+      title="Sofía Martínez"
     >
-      <div className="grid grid-cols-5 gap-2.5 overflow-x-auto pb-1">
-        {moods.map((mood) => (
-          <button
-            className={cn(
-              "flex min-w-20 flex-col items-center gap-2 rounded-[1.2rem] border bg-white p-2.5 text-xs font-extrabold shadow-sm transition active:scale-[0.97]",
-              mood.active
-                ? "border-primary shadow-[0_0_0_2px_rgba(104,51,244,0.2)]"
-                : "border-border"
-            )}
-            key={mood.label}
-            type="button"
-          >
-            <span
-              className={cn(
-                "grid size-10 place-items-center rounded-full text-lg",
-                mood.tone
-              )}
-            >
-              :)
-            </span>
-            {mood.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="valence-panel rounded-[1.45rem] p-4">
-        <h2 className="text-xl font-semibold">How stressed do you feel?</h2>
-        <p className="mt-1 text-sm font-semibold text-muted-foreground">
-          On a scale of 0 to 10
-        </p>
-        <div className="mt-8">
-          <div className="relative h-3 rounded-full bg-muted">
-            <div className="h-full w-[60%] rounded-full bg-primary" />
-            <span className="absolute left-[60%] top-1/2 grid size-9 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-primary bg-white text-sm font-black text-primary shadow-md">
-              6
-            </span>
+      <div className="valence-panel grid gap-4 rounded-[1.6rem] p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-black text-primary">Active patient</p>
+            <p className="mt-1 text-2xl font-black">23 questions completed</p>
+            <p className="mt-2 max-w-sm text-sm font-semibold leading-6 text-muted-foreground">
+              Primary goals: anxiety management, sleep consistency, and conflict recovery.
+            </p>
           </div>
-          <div className="mt-5 flex justify-between text-sm font-extrabold">
-            <span>0</span>
-            <span>10</span>
-          </div>
-          <div className="flex justify-between text-xs font-semibold text-muted-foreground">
-            <span>Not at all</span>
-            <span>Extremely</span>
-          </div>
+          <span className="grid size-14 shrink-0 place-items-center rounded-[1.25rem] bg-[var(--valence-pink)] text-white">
+            <UserRound className="size-7" />
+          </span>
         </div>
-      </div>
-
-      <div>
-        <h2 className="text-2xl font-semibold">What is on your mind?</h2>
-        <p className="mt-1 font-semibold text-muted-foreground">
-          Select all that apply
-        </p>
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {topics.map(([label, Icon], index) => (
-            <button
-              className={cn(
-                "flex h-12 items-center justify-center gap-2.5 rounded-[1.1rem] border bg-white/86 text-sm font-extrabold shadow-sm",
-                index === 1 ? "border-primary text-foreground" : "border-border"
-              )}
-              key={label}
-              type="button"
-            >
-              <Icon className="size-5 text-primary" />
-              {label}
-            </button>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            ["Risk", "Low"],
+            ["Mood", "Stable"],
+            ["Last seen", "Today"]
+          ].map(([label, value]) => (
+            <div className="rounded-[1.1rem] bg-[var(--valence-teal-soft)] p-3" key={label}>
+              <p className="text-xs font-bold text-muted-foreground">{label}</p>
+              <p className="mt-1 text-sm font-black">{value}</p>
+            </div>
           ))}
         </div>
       </div>
 
-      <div>
-        <h2 className="text-xl font-semibold">Notes</h2>
-        <div className="mt-3 rounded-[1.2rem] border border-border bg-white/88 p-4 text-sm text-muted-foreground shadow-sm">
-          Add a few notes about how you are feeling&hellip;
-          <p className="mt-6 text-right text-sm font-extrabold">0/200</p>
-        </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {[
+          ["Fortalezas", "Clear emotional vocabulary, keeps routines, asks for support."],
+          ["Puntos de atención", "Avoidance rises after work conflict and poor sleep."],
+          ["Plan sugerido", "Weekly exposure ladder, sleep log, and brief post-session check-in."],
+          ["Método", "CBT with trauma-informed pacing and structured homework."]
+        ].map(([title, detail]) => (
+          <article className="valence-panel rounded-[1.35rem] p-4" key={title}>
+            <p className="font-black text-primary">{title}</p>
+            <p className="mt-2 text-sm font-semibold leading-6 text-muted-foreground">
+              {detail}
+            </p>
+          </article>
+        ))}
       </div>
-
-      <Button className="valence-brand-button h-14 rounded-[1.2rem] text-lg font-extrabold">
-        Save check-in
-      </Button>
 
       <div className="valence-panel flex items-center justify-between gap-3 rounded-[1.35rem] p-4">
         <div className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-[1.1rem] bg-[var(--valence-purple-soft)] text-primary">
+          <span className="grid size-10 place-items-center rounded-[1.1rem] bg-[var(--valence-teal-soft)] text-primary">
             <Bell className="size-5" />
           </span>
           <div>
-            <p className="font-black">Notifications</p>
+            <p className="font-black">Notificaciones</p>
             <p className="text-sm font-semibold leading-6 text-muted-foreground">
               {pushDescription}
             </p>
@@ -1276,61 +1300,73 @@ function HomePage({
 }
 
 function ExercisesPage() {
+  const dimensions = [
+    ["Regulación", 72],
+    ["Sueño", 58],
+    ["Relaciones", 66],
+    ["Energía", 49]
+  ] as const;
+
   return (
     <PageChrome
-      description="A safe space to reflect, release, and grow."
-      eyebrow="guided care"
-      mascot={<SparkMark className="size-14" />}
-      title="Exercises"
+      description="A live clinical snapshot fed by notes, check-ins, and patient activity."
+      eyebrow="seguimiento"
+      mascot={<SparkMark className="size-14 bg-[var(--valence-pink)]" />}
+      title="Clinical snapshot"
     >
-      <div className="valence-panel relative overflow-hidden rounded-[1.5rem] p-5">
-        <SparkMark className="mb-4 size-8" />
-        <p className="max-w-md text-xl font-semibold leading-8">
-          Today I took time for myself. I went for a walk, stayed off my phone,
-          and just breathed.
-        </p>
-        <div className="mt-6 flex items-center justify-between">
-          <p className="font-semibold text-muted-foreground">
-            Today, 9:30 PM
-          </p>
-          <button
-            className="grid size-10 place-items-center rounded-[1.1rem] border border-border bg-white text-primary"
-            type="button"
-          >
-            <PenLine className="size-5" />
-          </button>
+      <div className="valence-panel rounded-[1.6rem] p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-black text-primary">This week</p>
+            <p className="mt-1 text-2xl font-black">More stable, sleep still uneven</p>
+          </div>
+          <span className="grid size-12 place-items-center rounded-[1.2rem] bg-[var(--valence-pink)] text-white">
+            <Activity className="size-6" />
+          </span>
         </div>
-        <Mascot
-          className="absolute bottom-[-1.5rem] right-6 size-20"
-          tone="yellow"
-        />
+        <div className="mt-5 grid gap-4">
+          {dimensions.map(([label, value]) => (
+            <div key={label}>
+              <div className="flex items-center justify-between text-sm font-bold">
+                <span>{label}</span>
+                <span className="text-primary">{value}%</span>
+              </div>
+              <div className="mt-2 h-2 rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{ width: `${value}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         {[
           {
-            title: "Breathing reset",
-            detail: "A 4 minute exercise for racing thoughts.",
+            title: "Insight",
+            detail: "Stress spikes after 8 PM when work notes mention evaluation or deadlines.",
             icon: Activity,
-            tone: "purple"
+            tone: "lime"
           },
           {
-            title: "Name what you need",
-            detail: "A brief prompt for identifying support.",
-            icon: Sparkles,
-            tone: "yellow"
+            title: "Clinical note",
+            detail: "Patient completed 4 of 5 reflections and skipped one sleep log.",
+            icon: FileText,
+            tone: "pink"
           },
           {
-            title: "Grounding scan",
-            detail: "Move attention through senses and surroundings.",
+            title: "Next focus",
+            detail: "Review cognitive distortions around performance feedback.",
             icon: Target,
-            tone: "orange"
+            tone: "lime"
           },
           {
-            title: "Sleep wind-down",
-            detail: "A calmer transition from the day into rest.",
-            icon: Heart,
-            tone: "purple"
+            title: "Realtime",
+            detail: "Snapshot listens for patient activity broadcasts from Supabase.",
+            icon: Sparkles,
+            tone: "pink"
           }
         ].map((exercise) => {
           const Icon = exercise.icon;
@@ -1345,9 +1381,8 @@ function ExercisesPage() {
                 <span
                   className={cn(
                     "grid size-11 place-items-center rounded-[1.1rem] text-white",
-                    exercise.tone === "purple" && "valence-purple-surface",
-                    exercise.tone === "yellow" && "bg-[var(--valence-yellow)] text-foreground",
-                    exercise.tone === "orange" && "bg-[var(--valence-orange)]"
+                    exercise.tone === "lime" && "bg-primary text-primary-foreground",
+                    exercise.tone === "pink" && "bg-[var(--valence-pink)]"
                   )}
                 >
                   <Icon className="size-5" />
@@ -1369,180 +1404,56 @@ function ExercisesPage() {
 
       <Button className="valence-brand-button h-14 rounded-[1.2rem] text-lg font-extrabold">
         <PenLine className="size-5" />
-        New entry
+        Add clinical note
       </Button>
     </PageChrome>
   );
 }
 
 function SessionsPage() {
-  const weekdays = [
-    { id: "sun", label: "SUN" },
-    { id: "mon", label: "MON" },
-    { id: "tue", label: "TUE" },
-    { id: "wed", label: "WED" },
-    { id: "thu", label: "THU" },
-    { id: "fri", label: "FRI" },
-    { id: "sat", label: "SAT" }
-  ];
-  const days = [
-    { day: 27, id: "prev-27" },
-    { day: 28, id: "prev-28" },
-    { day: 29, id: "prev-29" },
-    { day: 30, id: "prev-30" },
-    { day: 1, id: "may-1" },
-    { day: 2, id: "may-2" },
-    { day: 3, id: "may-3" },
-    { day: 4, id: "may-4" },
-    { day: 5, id: "may-5" },
-    { day: 6, id: "may-6" },
-    { day: 7, id: "may-7" },
-    { day: 8, id: "may-8" },
-    { day: 9, id: "may-9" },
-    { day: 10, id: "may-10" },
-    { day: 11, id: "may-11" },
-    { day: 12, id: "may-12" },
-    { day: 13, id: "may-13" },
-    { day: 14, id: "may-14" },
-    { day: 15, id: "may-15" },
-    { day: 16, id: "may-16" },
-    { day: 17, id: "may-17" },
-    { day: 18, id: "may-18" },
-    { day: 19, id: "may-19" },
-    { day: 20, id: "may-20" },
-    { day: 21, id: "may-21" },
-    { day: 22, id: "may-22" },
-    { day: 23, id: "may-23" },
-    { day: 24, id: "may-24" },
-    { day: 25, id: "may-25" },
-    { day: 26, id: "may-26" },
-    { day: 27, id: "may-27" },
-    { day: 28, id: "may-28" },
-    { day: 29, id: "may-29" },
-    { day: 30, id: "may-30" },
-    { day: 31, id: "may-31" }
-  ];
-  const dots = new Set([7, 9, 12, 19, 28, 30]);
-
   return (
     <PageChrome
-      description="View and manage your upcoming sessions and appointments."
-      mascot={<Mascot className="size-32" tone="yellow" />}
-      title="Sessions"
+      description="Clinical guidance, session preparation, and suggested next steps for the therapist."
+      eyebrow="clinical coach"
+      mascot={<Mascot className="size-28" tone="purple" />}
+      title="Coach"
     >
-      <div className="grid grid-cols-2 rounded-[1.35rem] border border-border bg-white p-1.5 shadow-sm">
-        <button
-          className="valence-brand-button h-11 rounded-[1rem] text-base font-extrabold text-white"
-          type="button"
-        >
-          Month
-        </button>
-        <button className="h-11 rounded-[1rem] text-base font-extrabold" type="button">
-          Week
-        </button>
-      </div>
-
-      <div className="valence-panel rounded-[1.5rem] p-4">
-        <div className="flex items-center justify-between">
-          <ChevronRight className="size-6 rotate-180" />
-          <h2 className="text-2xl font-semibold">May 2025</h2>
-          <ChevronRight className="size-6" />
-        </div>
-        <div className="mt-6 grid grid-cols-7 gap-y-4 text-center">
-          {weekdays.map((day) => (
-            <span
-              className="text-xs font-black text-muted-foreground"
-              key={day.id}
-            >
-              {day.label}
-            </span>
-          ))}
-          {days.map((date) => {
-            const isSelected = date.id === "may-14";
-            return (
-              <span
-                className="relative grid min-h-10 place-items-center text-lg font-bold"
-                key={date.id}
-              >
-                <span
-                  className={cn(
-                    "grid size-10 place-items-center rounded-full",
-                    isSelected && "bg-primary text-white shadow-lg shadow-primary/25"
-                  )}
-                >
-                  {date.day}
-                </span>
-                {dots.has(date.day) ? (
-                  <span className="absolute bottom-0 size-1.5 rounded-full bg-primary" />
-                ) : null}
-              </span>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="valence-panel rounded-[1.5rem] p-4">
-        <p className="text-lg font-black">Next appointment</p>
-        <div className="mt-4 flex items-center gap-3">
-          <span className="grid size-12 shrink-0 place-items-center rounded-full bg-[var(--valence-purple-soft)] text-primary">
-            <UserRound className="size-6" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-lg font-black">Dr. Emma Lin</p>
-            <p className="font-semibold text-muted-foreground">
-              Clinical Psychologist
-            </p>
-            <p className="mt-2 text-sm font-bold text-primary">
-              Tomorrow, May 15 at 10:00 AM
-            </p>
-          </div>
-          <button className="grid size-9 shrink-0 place-items-center rounded-full border border-border bg-white text-primary" type="button">
-            <Video className="size-4" />
-          </button>
-          <button className="grid size-9 shrink-0 place-items-center rounded-full border border-border bg-white text-primary" type="button">
-            <Phone className="size-4" />
-          </button>
-        </div>
-      </div>
-
       <div className="valence-purple-surface relative overflow-hidden rounded-[1.5rem] p-5 text-white">
-        <p className="text-3xl font-black">Dr. Emma Lin</p>
-        <p className="mt-2 text-lg font-semibold text-white/90">
-          Clinical Psychologist
+        <p className="text-sm font-black text-primary">Suggested focus</p>
+        <p className="mt-2 max-w-md text-2xl font-black leading-8 text-foreground">
+          Begin next session with sleep patterns before moving into workplace triggers.
         </p>
-        <p className="mt-4 flex items-center gap-2 text-xl font-bold">
-          <span className="size-3 rounded-full bg-[var(--valence-orange)]" />
-          00:24
+        <p className="mt-4 text-sm font-semibold leading-6 text-muted-foreground">
+          Generated from the last check-in, activity timeline, and your previous note.
         </p>
-        <div className="mt-7 grid grid-cols-4 gap-3">
-          {[
-            ["Mute", Mic],
-            ["Video", Video],
-            ["Notes", ClipboardList],
-            ["End", Phone]
-          ].map(([label, Icon]) => (
-            <button
-              className="grid place-items-center gap-2 text-sm font-bold text-white"
-              key={label as string}
-              type="button"
-            >
-              <span className="grid size-12 place-items-center rounded-full bg-white/18">
-                <Icon className="size-5" />
-              </span>
-              {label as string}
-            </button>
-          ))}
-        </div>
-        <Mascot
-          className="absolute bottom-5 right-7 size-16"
-          tone="purple"
-        />
+        <Mascot className="absolute bottom-4 right-6 size-16" tone="purple" />
       </div>
 
-      <Button className="valence-brand-button h-14 rounded-[1.2rem] text-lg font-extrabold">
-        <CalendarDays className="size-5" />
-        Book new session
-      </Button>
+      <div className="grid gap-3">
+        {[
+          ["Before session", "Review last panic log and note the avoided task."],
+          ["Question to ask", "What changed the night you slept better?"],
+          ["Suggested homework", "One 6 minute breathing practice after work, 3 times."]
+        ].map(([title, detail]) => (
+          <article className="valence-panel rounded-[1.35rem] p-4" key={title}>
+            <p className="text-sm font-black text-primary">{title}</p>
+            <p className="mt-2 text-sm font-semibold leading-6 text-muted-foreground">
+              {detail}
+            </p>
+          </article>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Button className="valence-brand-button h-14 rounded-[1.2rem] text-base font-extrabold">
+          <Sparkles className="size-5" />
+          Generate plan
+        </Button>
+        <Button className="h-14 rounded-[1.2rem] border-border bg-card/88 text-base font-extrabold" variant="outline">
+          <FileText className="size-5" />
+          Save note
+        </Button>
+      </div>
     </PageChrome>
   );
 }
@@ -1551,31 +1462,31 @@ function MessagesPage({ mode = "page" }: { mode?: "drawer" | "page" }) {
   const isDrawer = mode === "drawer";
   const messages = [
     {
-      body: "Hi there, I am glad you are here. How are you feeling today?",
+      body: "Sofía's last check-in points to sleep disruption after workplace feedback.",
       id: "clinician-welcome",
       mine: false,
       time: "10:00 AM"
     },
     {
-      body: "I have been feeling really anxious lately, especially at night.",
+      body: "Give me a quick session opening and one homework idea.",
       id: "member-anxious",
       mine: true,
       time: "10:01 AM"
     },
     {
-      body: "Thank you for sharing that with me. Anxiety can be really tough, especially when it affects your rest.",
+      body: "Open with sleep context, then ask what changed on the night she slept better.",
       id: "clinician-validate",
       mine: false,
       time: "10:02 AM"
     },
     {
-      body: "It helps just talking about it. I feel so overwhelmed sometimes.",
+      body: "Keep it gentle and short, please.",
       id: "member-overwhelmed",
       mine: true,
       time: "10:03 AM"
     },
     {
-      body: "Let us try a quick breathing exercise together. It can help calm your mind and body.",
+      body: "Suggested homework: one 6 minute breathing reset after work, three times this week.",
       id: "clinician-breathing",
       mine: false,
       time: "10:04 AM"
@@ -1593,30 +1504,30 @@ function MessagesPage({ mode = "page" }: { mode?: "drawer" | "page" }) {
     >
       <div
         className={cn(
-          "z-20 flex shrink-0 items-center gap-3 rounded-[1.35rem] border border-border bg-white/90 p-3 shadow-sm backdrop-blur",
+          "z-20 flex shrink-0 items-center gap-3 rounded-[1.35rem] border border-border bg-card/90 p-3 shadow-sm backdrop-blur",
           !isDrawer && "sticky top-[calc(4.25rem+env(safe-area-inset-top))]"
         )}
       >
-        <span className="grid size-12 place-items-center rounded-full bg-[var(--valence-purple-soft)] text-primary">
+        <span className="grid size-12 place-items-center rounded-full bg-[var(--valence-teal-soft)] text-primary">
           <UserRound className="size-6" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-lg font-black">Dr. Emma Lin</p>
+          <p className="text-lg font-black">Clinical coach</p>
           <p className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
             <span className="size-3 rounded-full bg-emerald-500" />
             Active now
           </p>
         </div>
         <button
-          className="grid size-10 place-items-center rounded-[1.1rem] border border-border bg-white"
+          className="grid size-10 place-items-center rounded-[1.1rem] border border-border bg-card"
           type="button"
         >
           <Phone className="size-5" />
         </button>
       </div>
 
-      <span className="w-fit rounded-full bg-[var(--valence-purple-soft)] px-4 py-1.5 text-sm font-extrabold text-primary">
-        your session
+      <span className="w-fit rounded-full bg-[var(--valence-teal-soft)] px-4 py-1.5 text-sm font-extrabold text-primary">
+        clinical prompt
       </span>
 
       <div
@@ -1657,7 +1568,7 @@ function MessagesPage({ mode = "page" }: { mode?: "drawer" | "page" }) {
             {["I feel overwhelmed", "Can not sleep", "Racing thoughts"].map(
               (prompt) => (
                 <button
-                  className="whitespace-nowrap rounded-full border border-primary/55 bg-white px-4 py-2 text-sm font-extrabold text-primary"
+                  className="whitespace-nowrap rounded-full border border-primary/55 bg-card px-4 py-2 text-sm font-extrabold text-primary"
                   key={prompt}
                   type="button"
                 >
@@ -1682,7 +1593,7 @@ function MessagesPage({ mode = "page" }: { mode?: "drawer" | "page" }) {
         >
           +
         </button>
-        <div className="flex h-12 min-w-0 flex-1 items-center rounded-full border border-border bg-white px-5 text-sm text-muted-foreground shadow-sm">
+        <div className="flex h-12 min-w-0 flex-1 items-center rounded-full border border-border bg-card px-5 text-sm text-muted-foreground shadow-sm">
           Write a message&hellip;
         </div>
         <button
@@ -1705,112 +1616,65 @@ function ProfilePage({
   versions: VersionState;
   onSignOut: () => void;
 }) {
-  const settings = [
-    ["Personal info", "Update your profile and personal details", UserRound, "purple"],
-    ["Therapy goals", "View and update your goals", Target, "orange"],
-    ["Notifications", "Manage notification preferences", Bell, "yellow"],
-    ["Privacy", "Manage your data and privacy settings", ShieldCheck, "ink"],
-    ["Payment", "Manage subscription and payments", CreditCard, "white"]
+  const activity = [
+    ["Today, 8:42 AM", "Completed mood check-in", "Mood stable, stress 4/10"],
+    ["Yesterday, 10:11 PM", "Journal entry", "Work conflict and sleep concerns"],
+    ["May 16, 7:30 PM", "Exercise", "Finished breathing reset"],
+    ["May 15, 6:05 PM", "Coach summary", "Clinical note reviewed"]
   ] as const;
 
   return (
     <PageChrome
-      description="You are doing great. Keep it going."
-      mascot={<SparkMark className="size-9" />}
-      title="Olivia Martinez"
+      description="A chronological view of patient activity from newest to oldest."
+      eyebrow="actividad"
+      mascot={<SparkMark className="size-9 bg-[var(--valence-pink)]" />}
+      title="Patient timeline"
     >
-      <div className="flex flex-col items-center text-center">
-        <div className="relative">
-          <span className="grid size-28 place-items-center rounded-full bg-[var(--valence-purple-soft)] text-primary shadow-sm">
-            <UserRound className="size-14" />
+      <div className="valence-panel rounded-[1.6rem] p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-black text-primary">Live activity</p>
+            <p className="mt-1 text-2xl font-black">4 updates this week</p>
+          </div>
+          <span className="grid size-12 place-items-center rounded-[1.2rem] bg-primary text-primary-foreground">
+            <Clock className="size-6" />
           </span>
-          <button
-            className="absolute bottom-1 right-0 grid size-10 place-items-center rounded-full bg-white text-primary shadow-lg"
-            type="button"
-          >
-            <PenLine className="size-5" />
-          </button>
         </div>
-        <p className="mt-3 text-sm font-semibold text-muted-foreground">
-          {user.email ?? "your Valence account"}
-        </p>
       </div>
 
-      <div className="valence-purple-surface flex items-center gap-4 overflow-hidden rounded-[1.5rem] p-4 text-white">
-        <Mascot className="size-20 shrink-0" tone="yellow" />
-        <div className="min-w-0 flex-1">
-          <p className="text-2xl font-black">12-day streak</p>
-          <p className="mt-1 text-base font-semibold text-white/90">
-            You logged your mood 12 days in a row
-          </p>
-        </div>
-        <ChevronRight className="size-6" />
-      </div>
-
-      <div className="valence-panel rounded-[1.5rem] p-4">
-        <div className="flex justify-between">
-          <h2 className="text-xl font-semibold">Your progress</h2>
-          <p className="text-lg font-black text-primary">5 / 7</p>
-        </div>
-        <p className="mt-3 font-extrabold text-primary">
-          Journal days this week
-        </p>
-        <div className="mt-4 grid grid-cols-7 gap-2 text-center">
-          {[
-            { day: "M", id: "monday" },
-            { day: "T", id: "tuesday" },
-            { day: "W", id: "wednesday" },
-            { day: "T", id: "thursday" },
-            { day: "F", id: "friday" },
-            { day: "S", id: "saturday" },
-            { day: "S", id: "sunday" }
-          ].map((day, index) => (
-            <span className="grid gap-2" key={day.id}>
-              <span
-                className={cn(
-                  "grid size-9 place-items-center rounded-full border text-white",
-                  index < 5
-                    ? "border-primary bg-primary"
-                    : "border-border bg-white text-transparent"
-                )}
-              >
-                <Check className="size-5" />
-              </span>
-              <span className="text-sm font-bold text-muted-foreground">
-                {day.day}
-              </span>
+      <div className="grid gap-3">
+        {activity.map(([time, title, detail], index) => (
+          <article className="valence-panel relative rounded-[1.35rem] p-4 pl-14" key={title}>
+            <span className="absolute left-4 top-4 grid size-8 place-items-center rounded-full bg-[var(--valence-teal-soft)] text-primary">
+              {index === 0 ? <span className="size-2 rounded-full bg-primary" /> : <Check className="size-4" />}
             </span>
-          ))}
-        </div>
+            <p className="text-xs font-bold text-muted-foreground">{time}</p>
+            <p className="mt-1 font-black">{title}</p>
+            <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">
+              {detail}
+            </p>
+          </article>
+        ))}
       </div>
 
       <div className="valence-panel overflow-hidden rounded-[1.5rem]">
-        {settings.map(([title, detail, Icon, tone]) => (
-          <button
-            className="flex w-full items-center gap-3 border-b border-border/80 p-4 text-left last:border-b-0"
+        {[
+          ["Realtime source", "Supabase broadcast channel"],
+          ["Signed in as", user.email ?? "Valence therapist"],
+          ["Release", versions.releaseVersion]
+        ].map(([title, detail]) => (
+          <div
+            className="flex w-full items-center justify-between gap-3 border-b border-border/80 p-4 last:border-b-0"
             key={title}
-            type="button"
           >
-            <span
-              className={cn(
-                "grid size-11 place-items-center rounded-[1.1rem]",
-                tone === "purple" && "bg-primary text-white",
-                tone === "orange" && "bg-[var(--valence-orange)] text-white",
-                tone === "yellow" && "bg-[var(--valence-yellow)] text-foreground",
-                tone === "ink" && "bg-foreground text-white",
-                tone === "white" && "bg-muted text-foreground"
-              )}
-            >
-              <Icon className="size-5" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-base font-black">{title}</span>
+            <span>
+              <span className="block text-sm font-black">{title}</span>
               <span className="mt-1 block text-sm font-semibold leading-5 text-muted-foreground">
                 {detail}
               </span>
             </span>
-            <ChevronRight className="size-5" />
-          </button>
+            <ChevronRight className="size-5 text-muted-foreground" />
+          </div>
         ))}
       </div>
 
@@ -1878,6 +1742,7 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
     isLoading: true,
     user: null
   });
+  const clinicianEvents = useClinicianRealtimeEvents(authState.user);
   const [nativeUpdate, dispatchNativeUpdate] = useReducer(nativeUpdateReducer, {
     bundle: null,
     error: null,
@@ -1953,8 +1818,10 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
     }
 
     dispatchNativeUpdate({ type: "dismiss" });
-    await CapacitorUpdater.cancelDelay();
-    await scheduleNativeUpdateForNextLaunch(nativeUpdate.bundle);
+    await Promise.all([
+      CapacitorUpdater.cancelDelay(),
+      scheduleNativeUpdateForNextLaunch(nativeUpdate.bundle)
+    ]);
     await CapacitorUpdater.reload();
   }
 
@@ -2107,6 +1974,8 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
     <>
       <WorkspaceShell
         activePage={activePage}
+        eventCount={clinicianEvents.eventCount}
+        lastEvent={clinicianEvents.lastEvent}
         onNavigate={navigateWithinApp}
         onSignOut={() => void signOut()}
         user={authState.user}

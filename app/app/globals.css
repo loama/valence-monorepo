@@ -1,27 +1,32 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fbfaf7;
-  --foreground: #181b22;
-  --card: #ffffff;
-  --card-foreground: #181b22;
-  --primary: #6833f4;
-  --primary-foreground: #ffffff;
-  --secondary: #f2eefc;
-  --secondary-foreground: #271552;
-  --muted: #f0eee9;
-  --muted-foreground: #6e7078;
-  --accent: #efe7ff;
-  --accent-foreground: #36157c;
-  --border: #e2ded7;
-  --ring: #7a39ff;
-  --valence-purple: #6833f4;
-  --valence-purple-deep: #4f1bd7;
-  --valence-purple-soft: #efe7ff;
-  --valence-orange: #ff7b2c;
-  --valence-yellow: #f2d300;
-  --valence-ink: #181b22;
-  --valence-cream: #fbfaf7;
+  --background: #041e24;
+  --foreground: #f4fbf2;
+  --card: #092a31;
+  --card-foreground: #f4fbf2;
+  --primary: #d8ff65;
+  --primary-foreground: #061d22;
+  --secondary: #123942;
+  --secondary-foreground: #d7ede8;
+  --muted: #0d2f37;
+  --muted-foreground: #8eb0ad;
+  --accent: #ff4fa3;
+  --accent-foreground: #fff7fb;
+  --border: #1a4852;
+  --ring: #d8ff65;
+  --valence-purple: #7a5cff;
+  --valence-purple-deep: #5638dc;
+  --valence-purple-soft: #1c384b;
+  --valence-orange: #ff8f4c;
+  --valence-yellow: #d8ff65;
+  --valence-lime: #d8ff65;
+  --valence-pink: #ff4fa3;
+  --valence-teal: #0f3c45;
+  --valence-teal-deep: #041e24;
+  --valence-teal-soft: #123942;
+  --valence-ink: #f4fbf2;
+  --valence-cream: #f4fbf2;
   --radius: 1.25rem;
 }
 
@@ -95,7 +100,7 @@ button:not(:disabled),
 
 .valence-logo {
   align-items: center;
-  color: var(--valence-ink);
+  color: var(--foreground);
   display: inline-flex;
   font-weight: 1000;
   letter-spacing: 0;
@@ -103,7 +108,7 @@ button:not(:disabled),
 }
 
 .valence-spark {
-  background: var(--valence-purple);
+  background: var(--valence-lime);
   clip-path: polygon(
     50% 0%,
     61% 33%,
@@ -115,35 +120,36 @@ button:not(:disabled),
     39% 33%
   );
   display: inline-block;
-  filter: drop-shadow(0 8px 14px rgba(104, 51, 244, 0.22));
+  filter: drop-shadow(0 8px 14px rgba(216, 255, 101, 0.2));
 }
 
 .valence-panel {
-  background: rgba(255, 255, 255, 0.88);
-  border: 1px solid rgba(24, 27, 34, 0.1);
+  background: rgba(9, 42, 49, 0.9);
+  border: 1px solid rgba(135, 181, 176, 0.16);
   box-shadow:
-    0 26px 70px rgba(24, 27, 34, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    0 26px 70px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .valence-purple-surface {
-  background: var(--valence-purple);
-  box-shadow: 0 24px 44px rgba(104, 51, 244, 0.28);
+  background: var(--valence-teal);
+  box-shadow: 0 24px 44px rgba(0, 0, 0, 0.24);
 }
 
 .valence-brand-button {
-  background: var(--valence-purple);
+  background: var(--valence-lime);
   border: 0;
-  box-shadow: 0 18px 34px rgba(104, 51, 244, 0.28);
+  color: var(--primary-foreground);
+  box-shadow: 0 18px 34px rgba(216, 255, 101, 0.18);
 }
 
 .valence-brand-button:hover {
-  background: var(--valence-purple-deep);
+  background: #e5ff8f;
 }
 
 .valence-squiggle {
-  border: 2px solid rgba(104, 51, 244, 0.34);
-  border-color: rgba(104, 51, 244, 0.34) transparent transparent transparent;
+  border: 2px solid rgba(216, 255, 101, 0.28);
+  border-color: rgba(216, 255, 101, 0.28) transparent transparent transparent;
   border-radius: 52% 48% 44% 56%;
   height: 8rem;
   pointer-events: none;
@@ -189,8 +195,8 @@ button:not(:disabled),
 }
 
 .valence-mascot-purple {
-  background: var(--valence-purple);
-  box-shadow: 0 18px 24px rgba(104, 51, 244, 0.24);
+  background: var(--valence-pink);
+  box-shadow: 0 18px 24px rgba(255, 79, 163, 0.18);
 }
 
 .valence-mascot-yellow {
@@ -203,9 +209,19 @@ button:not(:disabled),
 
 .valence-spinner {
   animation: valence-spin 950ms linear infinite;
-  border: 0.35rem solid rgba(104, 51, 244, 0.18);
-  border-right-color: var(--valence-purple);
+  border: 0.35rem solid rgba(216, 255, 101, 0.16);
+  border-right-color: var(--valence-lime);
   border-radius: 999px;
+}
+
+.valence-field {
+  background: rgba(5, 34, 40, 0.78);
+  border: 1px solid rgba(142, 176, 173, 0.22);
+  color: var(--foreground);
+}
+
+.valence-field::placeholder {
+  color: rgba(142, 176, 173, 0.84);
 }
 
 .valence-safe-screen {
