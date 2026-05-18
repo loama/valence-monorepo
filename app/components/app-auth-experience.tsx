@@ -133,49 +133,60 @@ const appReleaseVersion = Number.isInteger(appReleaseNumber)
   ? String(appReleaseNumber)
   : fallbackInstalledVersion;
 
-const navItems: Array<{
-  description: string;
-  href: string;
-  icon: LucideIcon;
-  label: string;
-  page: PageKey;
-}> = [
+const pageItems: Record<
+  PageKey,
   {
+    description: string;
+    href: string;
+    icon: LucideIcon;
+    label: string;
+    page: PageKey;
+  }
+> = {
+  home: {
     description: "Mood check-in",
     href: `${appRouteBasePath}/`,
     icon: Home,
     label: "Home",
     page: "home"
   },
-  {
+  exercises: {
     description: "Guided exercises",
     href: `${appRouteBasePath}/exercises/`,
     icon: Dumbbell,
     label: "Exercises",
     page: "exercises"
   },
-  {
+  sessions: {
     description: "Appointments",
     href: `${appRouteBasePath}/sessions/`,
     icon: CalendarDays,
     label: "Sessions",
     page: "sessions"
   },
-  {
+  messages: {
     description: "Care team chat",
     href: `${appRouteBasePath}/messages/`,
     icon: MessageCircle,
     label: "Messages",
     page: "messages"
   },
-  {
+  profile: {
     description: "Progress and settings",
     href: `${appRouteBasePath}/profile/`,
     icon: UserRound,
     label: "Profile",
     page: "profile"
   }
-];
+};
+
+const navItems: Array<{
+  description: string;
+  href: string;
+  icon: LucideIcon;
+  label: string;
+  page: PageKey;
+}> = [pageItems.home, pageItems.exercises, pageItems.sessions, pageItems.profile];
 
 function authReducer(_state: AuthState, action: AuthAction): AuthState {
   switch (action.type) {
@@ -231,9 +242,7 @@ function nativeUpdateReducer(
 }
 
 function getPageHref(page: PageKey) {
-  return (
-    navItems.find((item) => item.page === page)?.href ?? `${appRouteBasePath}/`
-  );
+  return pageItems[page]?.href ?? `${appRouteBasePath}/`;
 }
 
 function getPageFromPathname(pathname: string): PageKey {
@@ -317,12 +326,26 @@ function bindNativeUpdateLifecycle(
 
   void CapacitorUpdater.notifyAppReady();
 
+  void CapacitorUpdater.current().then((bundle) => {
+    if (isActive) {
+      console.info("[valence:update] current bundle", bundle);
+    }
+  });
+
   void CapacitorUpdater.getNextBundle().then((bundle) => {
     if (bundle && isActive) {
       void scheduleNativeUpdateForNextLaunch(bundle);
       dispatch({ bundle, type: "downloaded" });
     }
   });
+
+  bindListener(
+    App.addListener("resume", () => {
+      void checkAndDownloadNativeUpdate(dispatch);
+    }),
+    handles,
+    () => isActive
+  );
 
   bindListener(
     CapacitorUpdater.addListener("download", ({ percent }) => {
@@ -377,7 +400,16 @@ async function checkAndDownloadNativeUpdate(
   dispatch({ type: "checking" });
 
   try {
+    const nextBundle = await CapacitorUpdater.getNextBundle();
+
+    if (nextBundle) {
+      await scheduleNativeUpdateForNextLaunch(nextBundle);
+      dispatch({ bundle: nextBundle, type: "downloaded" });
+      return;
+    }
+
     const latest = await CapacitorUpdater.getLatest();
+    console.info("[valence:update] latest bundle", latest);
 
     if (!isDownloadableUpdate(latest)) {
       return;
@@ -717,6 +749,39 @@ function NativeUpdateDrawer({
   );
 }
 
+function MessagesDrawer({
+  open,
+  onOpenChange
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <Drawer open={open} onOpenChange={onOpenChange} shouldScaleBackground={false}>
+      <DrawerContent className="mx-auto flex h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] max-w-3xl flex-col overflow-hidden rounded-t-[2.25rem] border-border bg-background px-[calc(env(safe-area-inset-left)+1rem)] pb-[calc(env(safe-area-inset-bottom)+1rem)] pr-[calc(env(safe-area-inset-right)+1rem)] pt-4">
+        <DrawerHeader className="shrink-0 px-1 pb-3 pt-1 text-left">
+          <div className="flex items-center gap-3">
+            <span className="grid size-12 place-items-center rounded-2xl bg-[var(--valence-purple-soft)] text-primary">
+              <MessageCircle className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <DrawerTitle className="text-2xl font-black">
+                Messages
+              </DrawerTitle>
+              <DrawerDescription className="mt-0.5">
+                Dr. Emma Lin is active now.
+              </DrawerDescription>
+            </div>
+          </div>
+        </DrawerHeader>
+        <div className="min-h-0 flex-1">
+          <MessagesPage mode="drawer" />
+        </div>
+      </DrawerContent>
+    </Drawer>
+  );
+}
+
 function SplashScreen({ versions }: { versions: VersionState }) {
   return (
     <main className="valence-safe-screen relative grid min-h-dvh place-items-center overflow-hidden bg-background px-6 text-foreground">
@@ -930,7 +995,8 @@ function WorkspaceShell({
   onSignOut: () => void;
 }) {
   const email = user.email ?? "Member";
-  const activeNav = navItems.find((item) => item.page === activePage);
+  const [messagesOpen, setMessagesOpen] = useState(false);
+  const activeNav = pageItems[activePage];
 
   function handleNavigate(event: MouseEvent<HTMLAnchorElement>, page: PageKey) {
     event.preventDefault();
@@ -983,10 +1049,13 @@ function WorkspaceShell({
 
   return (
     <div className="min-h-dvh overflow-x-hidden bg-background pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] text-foreground lg:grid lg:grid-cols-[18rem_1fr]">
-      <div className="hidden lg:block">{aside}</div>
+      <div className="hidden lg:block" aria-hidden="true" />
+      <div className="fixed bottom-0 left-[env(safe-area-inset-left)] top-0 z-40 hidden lg:block">
+        {aside}
+      </div>
 
-      <main className="min-w-0">
-        <header className="sticky top-0 z-30 flex min-h-[calc(5.5rem+env(safe-area-inset-top))] items-end justify-between bg-background/88 px-5 pb-4 pt-[calc(env(safe-area-inset-top)+0.9rem)] backdrop-blur-xl sm:px-6 lg:min-h-20 lg:px-8 lg:pt-0">
+      <main className="min-w-0 lg:col-start-2">
+        <header className="fixed left-[env(safe-area-inset-left)] right-[env(safe-area-inset-right)] top-0 z-50 flex min-h-[calc(5.5rem+env(safe-area-inset-top))] items-end justify-between border-b border-border/60 bg-background/88 px-5 pb-4 pt-[calc(env(safe-area-inset-top)+0.9rem)] backdrop-blur-xl sm:px-6 lg:left-[calc(18rem+env(safe-area-inset-left))] lg:min-h-20 lg:px-8 lg:pt-0">
           <BrandLogo className="lg:hidden" size="sm" />
           <div className="hidden lg:block">
             <p className="text-sm font-extrabold">{activeNav?.label}</p>
@@ -995,14 +1064,15 @@ function WorkspaceShell({
             </p>
           </div>
           <button
-            aria-label="Open Valence tools"
+            aria-label="Open messages"
             className="flex size-14 items-center justify-center rounded-2xl border border-border bg-white/84 shadow-sm backdrop-blur"
+            onClick={() => setMessagesOpen(true)}
             type="button"
           >
             <SparkMark className="size-6" />
           </button>
         </header>
-        <div className="pb-[calc(7.5rem+env(safe-area-inset-bottom))] lg:pb-0">
+        <div className="pb-[calc(7.5rem+env(safe-area-inset-bottom))] pt-[calc(5.5rem+env(safe-area-inset-top))] lg:pb-0 lg:pt-20">
           {children}
         </div>
       </main>
@@ -1011,7 +1081,7 @@ function WorkspaceShell({
         aria-label="Primary"
         className="fixed bottom-[calc(0.7rem+env(safe-area-inset-bottom))] left-[calc(0.75rem+env(safe-area-inset-left))] right-[calc(0.75rem+env(safe-area-inset-right))] z-40 lg:hidden"
       >
-        <div className="mx-auto grid max-w-md grid-cols-5 gap-0.5 rounded-[2rem] border border-border bg-white/90 p-1.5 shadow-[0_18px_55px_rgba(24,27,34,0.16)] backdrop-blur-xl">
+        <div className="mx-auto grid max-w-md grid-cols-4 gap-0.5 rounded-[2rem] border border-border bg-white/90 p-1.5 shadow-[0_18px_55px_rgba(24,27,34,0.16)] backdrop-blur-xl">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = item.page === activePage;
@@ -1036,6 +1106,8 @@ function WorkspaceShell({
           })}
         </div>
       </nav>
+
+      <MessagesDrawer open={messagesOpen} onOpenChange={setMessagesOpen} />
     </div>
   );
 }
@@ -1458,7 +1530,8 @@ function SessionsPage() {
   );
 }
 
-function MessagesPage() {
+function MessagesPage({ mode = "page" }: { mode?: "drawer" | "page" }) {
+  const isDrawer = mode === "drawer";
   const messages = [
     {
       body: "Hi there, I am glad you are here. How are you feeling today?",
@@ -1493,8 +1566,20 @@ function MessagesPage() {
   ];
 
   return (
-    <section className="mx-auto flex max-w-3xl flex-col gap-5 px-5 pb-8 pt-3 sm:px-6 lg:px-8">
-      <div className="sticky top-[calc(5rem+env(safe-area-inset-top))] z-20 flex items-center gap-3 rounded-[1.5rem] border border-border bg-white/90 p-3 shadow-sm backdrop-blur">
+    <section
+      className={cn(
+        "flex flex-col gap-5",
+        isDrawer
+          ? "h-full min-h-0 px-1 pb-0 pt-0"
+          : "mx-auto max-w-3xl px-5 pb-8 pt-3 sm:px-6 lg:px-8"
+      )}
+    >
+      <div
+        className={cn(
+          "z-20 flex shrink-0 items-center gap-3 rounded-[1.5rem] border border-border bg-white/90 p-3 shadow-sm backdrop-blur",
+          !isDrawer && "sticky top-[calc(5rem+env(safe-area-inset-top))]"
+        )}
+      >
         <span className="grid size-14 place-items-center rounded-full bg-[var(--valence-purple-soft)] text-primary">
           <UserRound className="size-7" />
         </span>
@@ -1517,51 +1602,63 @@ function MessagesPage() {
         your session
       </span>
 
-      <div className="grid gap-4">
-        {messages.map((message) => (
-          <div
-            className={cn(
-              "max-w-[82%] rounded-[1.45rem] p-5 shadow-sm",
-              message.mine
-                ? "valence-purple-surface ml-auto text-white"
-                : "valence-panel text-foreground"
-            )}
-            key={message.id}
-          >
-            <p className="text-lg font-semibold leading-8">{message.body}</p>
-            <p
+      <div
+        className={cn(
+          "min-h-0",
+          isDrawer ? "flex-1 overflow-y-auto pr-1" : "grid gap-4"
+        )}
+      >
+        <div className="grid gap-4">
+          {messages.map((message) => (
+            <div
               className={cn(
-                "mt-3 text-sm font-bold",
-                message.mine ? "text-white/82" : "text-muted-foreground"
+                "max-w-[82%] rounded-[1.45rem] p-5 shadow-sm",
+                message.mine
+                  ? "valence-purple-surface ml-auto text-white"
+                  : "valence-panel text-foreground"
               )}
+              key={message.id}
             >
-              {message.time}
-            </p>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-3">
-        <p className="text-sm font-semibold text-muted-foreground">
-          Need help getting started?
-        </p>
-        <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
-          {["I feel overwhelmed", "Can not sleep", "Racing thoughts"].map(
-            (prompt) => (
-              <button
-                className="whitespace-nowrap rounded-full border border-primary/55 bg-white px-4 py-2 text-sm font-extrabold text-primary"
-                key={prompt}
-                type="button"
+              <p className="text-lg font-semibold leading-8">{message.body}</p>
+              <p
+                className={cn(
+                  "mt-3 text-sm font-bold",
+                  message.mine ? "text-white/82" : "text-muted-foreground"
+                )}
               >
-                <Sparkles className="mr-1 inline size-4" />
-                {prompt}
-              </button>
-            )
-          )}
+                {message.time}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-5">
+          <p className="text-sm font-semibold text-muted-foreground">
+            Need help getting started?
+          </p>
+          <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+            {["I feel overwhelmed", "Can not sleep", "Racing thoughts"].map(
+              (prompt) => (
+                <button
+                  className="whitespace-nowrap rounded-full border border-primary/55 bg-white px-4 py-2 text-sm font-extrabold text-primary"
+                  key={prompt}
+                  type="button"
+                >
+                  <Sparkles className="mr-1 inline size-4" />
+                  {prompt}
+                </button>
+              )
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="sticky bottom-[calc(6.5rem+env(safe-area-inset-bottom))] z-20 flex items-center gap-3">
+      <div
+        className={cn(
+          "z-20 flex shrink-0 items-center gap-3",
+          !isDrawer && "sticky bottom-[calc(6.5rem+env(safe-area-inset-bottom))]"
+        )}
+      >
         <button
           className="valence-brand-button grid size-14 place-items-center rounded-full text-white"
           type="button"
@@ -1961,35 +2058,51 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
     window.scrollTo({ top: 0 });
   }
 
+  const updateDrawer = (
+    <NativeUpdateDrawer
+      onApplyNextLaunch={() => void applyNativeUpdateOnNextLaunch()}
+      onApplyNow={() => void applyNativeUpdateNow()}
+      update={nativeUpdate}
+    />
+  );
+
   if (authState.isLoading) {
-    return <SplashScreen versions={versions} />;
+    return (
+      <>
+        <SplashScreen versions={versions} />
+        {updateDrawer}
+      </>
+    );
   }
 
   if (!authState.user) {
-    return <LoginScreen versions={versions} />;
+    return (
+      <>
+        <LoginScreen versions={versions} />
+        {updateDrawer}
+      </>
+    );
   }
 
   return (
-    <WorkspaceShell
-      activePage={activePage}
-      onNavigate={navigateWithinApp}
-      onSignOut={() => void signOut()}
-      user={authState.user}
-      versions={versions}
-    >
-      <ActivePage
-        onEnablePushNotifications={() => void enablePushNotifications()}
+    <>
+      <WorkspaceShell
+        activePage={activePage}
+        onNavigate={navigateWithinApp}
         onSignOut={() => void signOut()}
-        page={activePage}
-        pushRegistration={pushRegistration}
         user={authState.user}
         versions={versions}
-      />
-      <NativeUpdateDrawer
-        onApplyNextLaunch={() => void applyNativeUpdateOnNextLaunch()}
-        onApplyNow={() => void applyNativeUpdateNow()}
-        update={nativeUpdate}
-      />
-    </WorkspaceShell>
+      >
+        <ActivePage
+          onEnablePushNotifications={() => void enablePushNotifications()}
+          onSignOut={() => void signOut()}
+          page={activePage}
+          pushRegistration={pushRegistration}
+          user={authState.user}
+          versions={versions}
+        />
+      </WorkspaceShell>
+      {updateDrawer}
+    </>
   );
 }

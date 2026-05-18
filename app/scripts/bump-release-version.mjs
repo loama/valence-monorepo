@@ -4,7 +4,9 @@ import { fileURLToPath } from "node:url";
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
 const releaseVersionPath = join(currentDirectory, "..", "release-version.json");
+const packageJsonPath = join(currentDirectory, "..", "package.json");
 const releaseVersion = JSON.parse(readFileSync(releaseVersionPath, "utf8"));
+const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
 const nextVersion = Number(releaseVersion.version) + 1;
 
 if (!Number.isInteger(nextVersion) || nextVersion < 1) {
@@ -14,6 +16,10 @@ if (!Number.isInteger(nextVersion) || nextVersion < 1) {
 writeFileSync(
   releaseVersionPath,
   `${JSON.stringify({ version: nextVersion }, null, 2)}\n`
+);
+writeFileSync(
+  packageJsonPath,
+  `${JSON.stringify({ ...packageJson, version: `${nextVersion}.0.0` }, null, 2)}\n`
 );
 
 console.log(`Valence app release version bumped to ${nextVersion}`);

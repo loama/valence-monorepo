@@ -26,6 +26,8 @@ Before publishing a new mobile live update, bump the release by one:
 bun run --cwd app release:bump
 ```
 
+That command updates both `release-version.json` and `app/package.json`.
+
 Supabase Auth URL configuration for the production project should allow:
 
 - Site URL: `https://valencedev.com/app`
