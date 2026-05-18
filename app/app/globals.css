@@ -1,32 +1,34 @@
 @import "tailwindcss";
 
 :root {
-  --background: #041e24;
-  --foreground: #f4fbf2;
-  --card: #092a31;
-  --card-foreground: #f4fbf2;
-  --primary: #d8ff65;
-  --primary-foreground: #061d22;
-  --secondary: #123942;
-  --secondary-foreground: #d7ede8;
-  --muted: #0d2f37;
-  --muted-foreground: #8eb0ad;
-  --accent: #ff4fa3;
-  --accent-foreground: #fff7fb;
-  --border: #1a4852;
-  --ring: #d8ff65;
-  --valence-purple: #7a5cff;
-  --valence-purple-deep: #5638dc;
-  --valence-purple-soft: #1c384b;
-  --valence-orange: #ff8f4c;
-  --valence-yellow: #d8ff65;
-  --valence-lime: #d8ff65;
-  --valence-pink: #ff4fa3;
-  --valence-teal: #0f3c45;
-  --valence-teal-deep: #041e24;
-  --valence-teal-soft: #123942;
-  --valence-ink: #f4fbf2;
-  --valence-cream: #f4fbf2;
+  --background: #f8fafc;
+  --foreground: #111827;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --primary: var(--role-accent, #7357f6);
+  --primary-foreground: #ffffff;
+  --secondary: #eef2f7;
+  --secondary-foreground: #334155;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #f3f0ff;
+  --accent-foreground: #312e81;
+  --border: #e2e8f0;
+  --ring: var(--role-accent, #7357f6);
+  --patient-accent: #7357f6;
+  --therapist-accent: #2563eb;
+  --valence-purple: #7357f6;
+  --valence-purple-deep: #5b3ee5;
+  --valence-purple-soft: #ede9fe;
+  --valence-orange: #ff7a2f;
+  --valence-yellow: #f2d20c;
+  --valence-lime: #7357f6;
+  --valence-pink: #7357f6;
+  --valence-teal: #f8fafc;
+  --valence-teal-deep: #111827;
+  --valence-teal-soft: #eef2f7;
+  --valence-ink: #111827;
+  --valence-cream: #ffffff;
   --radius: 1.25rem;
 }
 
@@ -102,13 +104,13 @@ button:not(:disabled),
   align-items: center;
   color: var(--foreground);
   display: inline-flex;
-  font-weight: 1000;
+  font-weight: 900;
   letter-spacing: 0;
   line-height: 0.9;
 }
 
 .valence-spark {
-  background: var(--valence-lime);
+  background: var(--role-accent, var(--valence-purple));
   clip-path: polygon(
     50% 0%,
     61% 33%,
@@ -120,31 +122,31 @@ button:not(:disabled),
     39% 33%
   );
   display: inline-block;
-  filter: drop-shadow(0 8px 14px rgba(216, 255, 101, 0.2));
+  filter: drop-shadow(0 8px 14px rgba(115, 87, 246, 0.22));
 }
 
 .valence-panel {
-  background: rgba(9, 42, 49, 0.9);
-  border: 1px solid rgba(135, 181, 176, 0.16);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.22);
   box-shadow:
-    0 26px 70px rgba(0, 0, 0, 0.18),
+    0 26px 70px rgba(15, 23, 42, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .valence-purple-surface {
-  background: var(--valence-teal);
-  box-shadow: 0 24px 44px rgba(0, 0, 0, 0.24);
+  background: var(--role-accent, var(--valence-purple));
+  box-shadow: 0 24px 44px rgba(115, 87, 246, 0.18);
 }
 
 .valence-brand-button {
-  background: var(--valence-lime);
+  background: var(--role-accent, var(--valence-purple));
   border: 0;
   color: var(--primary-foreground);
-  box-shadow: 0 18px 34px rgba(216, 255, 101, 0.18);
+  box-shadow: 0 18px 34px rgba(115, 87, 246, 0.18);
 }
 
 .valence-brand-button:hover {
-  background: #e5ff8f;
+  background: var(--role-accent, var(--valence-purple-deep));
 }
 
 .valence-squiggle {
@@ -215,13 +217,26 @@ button:not(:disabled),
 }
 
 .valence-field {
-  background: rgba(5, 34, 40, 0.78);
-  border: 1px solid rgba(142, 176, 173, 0.22);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.26);
   color: var(--foreground);
 }
 
 .valence-field::placeholder {
-  color: rgba(142, 176, 173, 0.84);
+  color: rgba(100, 116, 139, 0.84);
+}
+
+.valence-app-shell {
+  --primary: var(--role-accent, #7357f6);
+  --ring: var(--role-accent, #7357f6);
+  --accent: var(--role-accent-soft, #ede9fe);
+  background:
+    radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--role-accent, #7357f6) 10%, transparent) 0, transparent 28rem),
+    var(--background);
+}
+
+.valence-screen-transition {
+  animation: valence-card-enter 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .valence-safe-screen {

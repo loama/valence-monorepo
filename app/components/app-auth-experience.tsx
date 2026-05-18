@@ -8,7 +8,7 @@ import {
   useSyncExternalStore,
   type Dispatch,
   type FormEvent,
-  type MouseEvent,
+  type CSSProperties,
   type ReactNode,
   type SetStateAction
 } from "react";
@@ -23,24 +23,25 @@ import {
 } from "@capgo/capacitor-updater";
 import type { Provider, User } from "@supabase/supabase-js";
 import {
-  Activity,
   Apple,
+  ArrowLeft,
   Bell,
-  Brain,
+  BookOpen,
+  CalendarDays,
   Check,
   ChevronRight,
-  Clock,
   ClipboardList,
   CloudDownload,
-  FileText,
+  HeartPulse,
+  Home,
+  LockKeyhole,
   LogOut,
   Mail,
   MessageCircle,
-  PenLine,
-  Phone,
+  Search,
   Send,
   Sparkles,
-  Target,
+  Stethoscope,
   UserRound,
   UsersRound,
   type LucideIcon
@@ -48,7 +49,32 @@ import {
 import packageJson from "@/package.json";
 import releaseVersion from "@/release-version.json";
 
+import {
+  demoPatients as previewPatients,
+  patientSessions as previewPatientSessions,
+  therapistSessions as previewTherapistSessions
+} from "@/components/app-demo/data";
+import { PatientExercisesScreen } from "@/components/app-demo/screens/patient/exercises-screen";
+import { PatientHomeScreen } from "@/components/app-demo/screens/patient/home-screen";
+import { PatientOnboardingScreen } from "@/components/app-demo/screens/patient/onboarding-screen";
+import { PatientProfileScreen } from "@/components/app-demo/screens/patient/profile-screen";
+import { PatientSessionsScreen } from "@/components/app-demo/screens/patient/sessions-screen";
+import { PatientWelcomeCarousel } from "@/components/app-demo/screens/patient/welcome-carousel";
+import { TherapistHomeScreen } from "@/components/app-demo/screens/therapist/home-screen";
+import { TherapistOnboardingScreen } from "@/components/app-demo/screens/therapist/onboarding-screen";
+import { TherapistPatientsScreen } from "@/components/app-demo/screens/therapist/patients-screen";
+import { TherapistProfileScreen } from "@/components/app-demo/screens/therapist/profile-screen";
+import { TherapistSessionsScreen } from "@/components/app-demo/screens/therapist/sessions-screen";
+import { TherapistWelcomeCarousel } from "@/components/app-demo/screens/therapist/welcome-carousel";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
 import {
   Drawer,
   DrawerClose,
@@ -60,6 +86,10 @@ import {
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -67,8 +97,25 @@ const appRouteBasePath = "/app";
 const nativeRedirectUrl =
   process.env.NEXT_PUBLIC_APP_NATIVE_REDIRECT_URL ??
   "valence://auth/callback";
+const flowStorageKey = "valence-demo-flow-v3";
 
-export type PageKey = "home" | "exercises" | "sessions" | "messages" | "profile";
+export type PageKey =
+  | "home"
+  | "sessions"
+  | "exercises"
+  | "patients"
+  | "messages"
+  | "profile";
+
+type UserRole = "patient" | "therapist";
+type FlowStage = "role" | "carousel" | "auth" | "onboarding" | "app";
+
+type DemoFlowState = {
+  carouselIndex: number;
+  onboardingStep: number;
+  role: UserRole | null;
+  stage: FlowStage;
+};
 
 type VersionState = {
   installedVersion: string;
@@ -122,66 +169,460 @@ type NativeUpdateAction =
       type: "dismiss";
     };
 
+type PageItem = {
+  description: string;
+  href: string;
+  icon: LucideIcon;
+  label: string;
+  page: PageKey;
+};
+
+type ChatMessage = {
+  body: string;
+  id: string;
+  mine: boolean;
+};
+
+type DemoSession = {
+  date: string;
+  id: string;
+  mode: string;
+  notes: string;
+  person: string;
+  status: string;
+  time: string;
+};
+
+type DemoPatient = {
+  focus: string;
+  id: string;
+  lastSeen: string;
+  name: string;
+  progress: number;
+  risk: string;
+};
+
 const fallbackInstalledVersion = packageJson.version;
 const appReleaseNumber = Number(releaseVersion.version);
 const appReleaseVersion = Number.isInteger(appReleaseNumber)
   ? String(appReleaseNumber)
   : fallbackInstalledVersion;
 
-const pageItems: Record<
-  PageKey,
-  {
-    description: string;
-    href: string;
-    icon: LucideIcon;
-    label: string;
-    page: PageKey;
-  }
-> = {
+const pageItems: Record<PageKey, PageItem> = {
   home: {
-    description: "Clinical patient profile",
+    description: "Your starting point",
     href: `${appRouteBasePath}/`,
-    icon: UserRound,
-    label: "Perfil",
+    icon: Home,
+    label: "Home",
     page: "home"
   },
-  exercises: {
-    description: "Clinical snapshot",
-    href: `${appRouteBasePath}/exercises/`,
-    icon: Activity,
-    label: "Seguimiento",
-    page: "exercises"
-  },
   sessions: {
-    description: "Clinical coach",
+    description: "Upcoming care sessions",
     href: `${appRouteBasePath}/sessions/`,
-    icon: Brain,
-    label: "Coach",
+    icon: CalendarDays,
+    label: "Sessions",
     page: "sessions"
   },
+  exercises: {
+    description: "Practice between sessions",
+    href: `${appRouteBasePath}/exercises/`,
+    icon: BookOpen,
+    label: "Exercises",
+    page: "exercises"
+  },
+  patients: {
+    description: "Client list and notes",
+    href: `${appRouteBasePath}/patients/`,
+    icon: UsersRound,
+    label: "Patients",
+    page: "patients"
+  },
   messages: {
-    description: "Care team chat",
+    description: "Local message demo",
     href: `${appRouteBasePath}/messages/`,
     icon: MessageCircle,
     label: "Messages",
     page: "messages"
   },
   profile: {
-    description: "Patient activity",
+    description: "Profile and demo settings",
     href: `${appRouteBasePath}/profile/`,
-    icon: ClipboardList,
-    label: "Actividad",
+    icon: UserRound,
+    label: "Profile",
     page: "profile"
   }
 };
 
-const navItems: Array<{
-  description: string;
-  href: string;
-  icon: LucideIcon;
-  label: string;
-  page: PageKey;
-}> = [pageItems.home, pageItems.exercises, pageItems.sessions, pageItems.profile];
+const roleContent: Record<
+  UserRole,
+  {
+    accent: string;
+    accentSoft: string;
+    audience: string;
+    carousel: Array<{ body: string; title: string }>;
+    onboarding: Array<{
+      description: string;
+      fields: Array<{
+        label: string;
+        options?: string[];
+        placeholder?: string;
+        type: "input" | "radio" | "textarea";
+      }>;
+      title: string;
+    }>;
+  }
+> = {
+  patient: {
+    accent: "#7357f6",
+    accentSoft: "#ede9fe",
+    audience: "Patient",
+    carousel: [
+      {
+        title: "Care that stays organized",
+        body: "Keep sessions, exercises, and messages in one calm place."
+      },
+      {
+        title: "Know what comes next",
+        body: "See upcoming appointments and what to practice before them."
+      },
+      {
+        title: "Use exercises between visits",
+        body: "Try short guided activities and track what feels helpful."
+      },
+      {
+        title: "Message without losing context",
+        body: "See how private chat will look once backend messages are live."
+      }
+    ],
+    onboarding: [
+      {
+        title: "About you",
+        description: "A few basics help shape your demo experience.",
+        fields: [
+          { label: "Preferred name", placeholder: "Olivia", type: "input" },
+          {
+            label: "What brings you here?",
+            options: ["Anxiety", "Relationships", "Sleep", "Work stress"],
+            type: "radio"
+          }
+        ]
+      },
+      {
+        title: "Session preferences",
+        description: "Choose how you would like sessions to work.",
+        fields: [
+          {
+            label: "Preferred format",
+            options: ["Video", "In person", "Either"],
+            type: "radio"
+          },
+          { label: "Best days", placeholder: "Tuesday evenings", type: "input" }
+        ]
+      },
+      {
+        title: "Current goals",
+        description: "Name the areas you want to focus on first.",
+        fields: [
+          {
+            label: "Primary goal",
+            placeholder: "Sleep better and feel less anxious at night",
+            type: "textarea"
+          }
+        ]
+      },
+      {
+        title: "Check-in style",
+        description: "Pick the amount of structure that feels comfortable.",
+        fields: [
+          {
+            label: "Reminders",
+            options: ["Gentle", "Structured", "Only before sessions"],
+            type: "radio"
+          },
+          { label: "Anything to avoid?", placeholder: "Optional", type: "input" }
+        ]
+      },
+      {
+        title: "Ready to explore",
+        description: "You can change this later from profile.",
+        fields: [
+          {
+            label: "What would make Valence useful this week?",
+            placeholder: "A simple way to prepare for my next session",
+            type: "textarea"
+          }
+        ]
+      }
+    ]
+  },
+  therapist: {
+    accent: "#2563eb",
+    accentSoft: "#dbeafe",
+    audience: "Psychologist",
+    carousel: [
+      {
+        title: "A clean clinical workspace",
+        body: "Manage sessions, patient context, and notes without visual noise."
+      },
+      {
+        title: "Patients stay within reach",
+        body: "Search your active list and open patient details from a drawer."
+      },
+      {
+        title: "Sessions are easy to review",
+        body: "Open details, prepare focus areas, and keep the next step clear."
+      },
+      {
+        title: "Messages remain contextual",
+        body: "Use the chat drawer while staying in the current screen."
+      }
+    ],
+    onboarding: [
+      {
+        title: "Practice profile",
+        description: "Set the name and modality shown in the demo.",
+        fields: [
+          { label: "Display name", placeholder: "Dra. Emma Lin", type: "input" },
+          {
+            label: "Session format",
+            options: ["Virtual", "In person", "Both"],
+            type: "radio"
+          }
+        ]
+      },
+      {
+        title: "Clinical approach",
+        description: "Choose what your profile should highlight.",
+        fields: [
+          {
+            label: "Therapy style",
+            options: ["CBT", "ACT", "Psychodynamic", "Integrative"],
+            type: "radio"
+          },
+          { label: "Specialty", placeholder: "Anxiety and trauma", type: "input" }
+        ]
+      },
+      {
+        title: "Availability",
+        description: "Make the schedule feel realistic for the demo.",
+        fields: [
+          { label: "Clinic hours", placeholder: "Mon to Thu, 10 AM to 6 PM", type: "input" },
+          {
+            label: "New patients",
+            options: ["Accepting", "Waitlist", "Not right now"],
+            type: "radio"
+          }
+        ]
+      },
+      {
+        title: "Patient intake",
+        description: "Configure what you want to capture first.",
+        fields: [
+          {
+            label: "Required intake",
+            options: ["Goals", "Symptoms", "History", "Consent"],
+            type: "radio"
+          },
+          { label: "Intake note", placeholder: "Ask about sleep and support system", type: "textarea" }
+        ]
+      },
+      {
+        title: "Workspace defaults",
+        description: "Pick the first thing you want to see after login.",
+        fields: [
+          {
+            label: "Default screen",
+            options: ["Home", "Sessions", "Patients"],
+            type: "radio"
+          }
+        ]
+      }
+    ]
+  }
+};
+
+const patientNavItems = [
+  pageItems.home,
+  pageItems.sessions,
+  pageItems.exercises,
+  pageItems.profile
+];
+const therapistNavItems = [
+  pageItems.home,
+  pageItems.sessions,
+  pageItems.patients,
+  pageItems.profile
+];
+
+const demoSessions: DemoSession[] = [
+  {
+    date: "Today",
+    id: "session-1",
+    mode: "Video",
+    notes: "Review sleep log and set one small practice for the week.",
+    person: "Dr. Emma Lin",
+    status: "Confirmed",
+    time: "5:30 PM"
+  },
+  {
+    date: "Thursday",
+    id: "session-2",
+    mode: "In person",
+    notes: "Prepare questions around work stress and recovery routines.",
+    person: "Dr. Rafael Torres",
+    status: "Needs confirmation",
+    time: "10:00 AM"
+  },
+  {
+    date: "May 28",
+    id: "session-3",
+    mode: "Video",
+    notes: "Follow up on grounding exercise and relationship goals.",
+    person: "Dr. Emma Lin",
+    status: "Confirmed",
+    time: "2:15 PM"
+  }
+];
+
+const therapistSessions: DemoSession[] = [
+  {
+    date: "Today",
+    id: "clinical-1",
+    mode: "Video",
+    notes: "Sofía wants to discuss sleep and work conflict.",
+    person: "Sofía Martínez",
+    status: "Confirmed",
+    time: "4:00 PM"
+  },
+  {
+    date: "Today",
+    id: "clinical-2",
+    mode: "In person",
+    notes: "Mateo completed intake and has one open consent item.",
+    person: "Mateo Ruiz",
+    status: "Intake",
+    time: "6:30 PM"
+  },
+  {
+    date: "Tomorrow",
+    id: "clinical-3",
+    mode: "Video",
+    notes: "Ana shared a new journal entry about relationship boundaries.",
+    person: "Ana Beltrán",
+    status: "Confirmed",
+    time: "11:00 AM"
+  }
+];
+
+const demoPatients: DemoPatient[] = [
+  {
+    focus: "Sleep, anxiety, work stress",
+    id: "patient-1",
+    lastSeen: "Today",
+    name: "Sofía Martínez",
+    progress: 72,
+    risk: "Low"
+  },
+  {
+    focus: "Intake, family context",
+    id: "patient-2",
+    lastSeen: "Yesterday",
+    name: "Mateo Ruiz",
+    progress: 41,
+    risk: "Medium"
+  },
+  {
+    focus: "Relationships, boundaries",
+    id: "patient-3",
+    lastSeen: "May 16",
+    name: "Ana Beltrán",
+    progress: 63,
+    risk: "Low"
+  },
+  {
+    focus: "Panic symptoms, exposure",
+    id: "patient-4",
+    lastSeen: "May 14",
+    name: "Diego Herrera",
+    progress: 56,
+    risk: "Medium"
+  }
+];
+
+function getInitialFlow(): DemoFlowState {
+  if (typeof window === "undefined") {
+    return {
+      carouselIndex: 0,
+      onboardingStep: 0,
+      role: null,
+      stage: "role"
+    };
+  }
+
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const demoRole = params.get("demoRole");
+    const demoStage = params.get("demoStage");
+    const hasDemoPreview = demoRole || demoStage;
+
+    if (hasDemoPreview) {
+      const role =
+        demoRole === "therapist" || demoRole === "patient"
+          ? demoRole
+          : null;
+      const stage =
+        demoStage === "carousel" ||
+        demoStage === "auth" ||
+        demoStage === "onboarding" ||
+        demoStage === "app" ||
+        demoStage === "role"
+          ? demoStage
+          : "role";
+
+      return {
+        carouselIndex: Math.max(
+          0,
+          Math.min(3, Number(params.get("demoSlide")) || 0)
+        ),
+        onboardingStep: Math.max(
+          0,
+          Math.min(4, Number(params.get("demoStep")) || 0)
+        ),
+        role,
+        stage
+      };
+    }
+
+    const stored = window.localStorage.getItem(flowStorageKey);
+
+    if (!stored) {
+      throw new Error("No stored flow");
+    }
+
+    const parsed = JSON.parse(stored) as Partial<DemoFlowState>;
+
+    return {
+      carouselIndex: Number(parsed.carouselIndex) || 0,
+      onboardingStep: Number(parsed.onboardingStep) || 0,
+      role: parsed.role === "patient" || parsed.role === "therapist" ? parsed.role : null,
+      stage:
+        parsed.stage === "carousel" ||
+        parsed.stage === "auth" ||
+        parsed.stage === "onboarding" ||
+        parsed.stage === "app" ||
+        parsed.stage === "role"
+          ? parsed.stage
+          : "role"
+    };
+  } catch {
+    return {
+      carouselIndex: 0,
+      onboardingStep: 0,
+      role: null,
+      stage: "role"
+    };
+  }
+}
 
 function authReducer(_state: AuthState, action: AuthAction): AuthState {
   switch (action.type) {
@@ -252,6 +693,10 @@ function getPageFromPathname(pathname: string): PageKey {
 
   if (normalizedPathname.endsWith("/sessions")) {
     return "sessions";
+  }
+
+  if (normalizedPathname.endsWith("/patients")) {
+    return "patients";
   }
 
   if (normalizedPathname.endsWith("/messages")) {
@@ -551,42 +996,6 @@ function useAppVersions(): VersionState {
   return versions;
 }
 
-function useClinicianRealtimeEvents(user: User | null) {
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-  const [eventCount, setEventCount] = useState(3);
-  const [lastEvent, setLastEvent] = useState("Sofía updated her check-in");
-
-  useEffect(() => {
-    if (!supabase || !user) {
-      return () => {};
-    }
-
-    const channel = supabase
-      .channel(`therapist-platform:${user.id}`)
-      .on(
-        "broadcast",
-        { event: "patient_activity" },
-        (payload) => {
-          const label =
-            typeof payload.payload?.title === "string"
-              ? payload.payload.title
-              : "New patient activity";
-
-          setLastEvent(label);
-          setEventCount((count) => count + 1);
-        }
-      );
-
-    channel.subscribe();
-
-    return () => {
-      void channel.unsubscribe();
-    };
-  }, [supabase, user]);
-
-  return { eventCount, lastEvent };
-}
-
 function getVisibleReleaseVersion(
   bundleId: string | null | undefined,
   bundleVersion: string | null | undefined
@@ -604,87 +1013,32 @@ function formatReleaseVersion(version: string) {
   return integerVersion?.[1] ?? version;
 }
 
-function BrandLogo({ className, size = "md" }: { className?: string; size?: "sm" | "md" | "lg" }) {
+function useDemoFlow() {
+  const [flow, setFlow] = useState<DemoFlowState>(getInitialFlow);
+
+  useEffect(() => {
+    window.localStorage.setItem(flowStorageKey, JSON.stringify(flow));
+  }, [flow]);
+
+  return [flow, setFlow] as const;
+}
+
+function roleAccentStyle(role: UserRole | null) {
+  const roleKey = role ?? "patient";
+  const content = roleContent[roleKey];
+
+  return {
+    "--role-accent": content.accent,
+    "--role-accent-soft": content.accentSoft
+  } as CSSProperties;
+}
+
+function BrandLogo({ className }: { className?: string }) {
   return (
-    <span
-      className={cn(
-        "valence-logo",
-        size === "lg" ? "text-6xl" : size === "md" ? "text-3xl" : "text-2xl",
-        className
-      )}
-    >
+    <span className={cn("valence-logo text-2xl", className)}>
       valence
-      <span
-        className={cn(
-          "valence-spark ml-1.5",
-          size === "lg" ? "size-8" : size === "md" ? "size-5" : "size-3.5"
-        )}
-      />
+      <span className="valence-spark ml-1.5 size-3.5" />
     </span>
-  );
-}
-
-function SparkMark({ className }: { className?: string }) {
-  return <span className={cn("valence-spark", className)} />;
-}
-
-function Mascot({
-  className,
-  tone = "yellow"
-}: {
-  className?: string;
-  tone?: "yellow" | "purple" | "orange";
-}) {
-  return (
-    <span
-      aria-hidden="true"
-      className={cn(
-        "valence-mascot",
-        tone === "yellow" && "valence-mascot-yellow",
-        tone === "purple" && "valence-mascot-purple",
-        tone === "orange" && "valence-mascot-orange",
-        className
-      )}
-    >
-      <span className="valence-mascot-face" />
-    </span>
-  );
-}
-
-function PageChrome({
-  eyebrow,
-  title,
-  description,
-  children,
-  mascot
-}: {
-  eyebrow?: string;
-  title: string;
-  description: string;
-  children: ReactNode;
-  mascot?: ReactNode;
-}) {
-  return (
-    <section className="relative mx-auto flex max-w-5xl flex-col gap-4 overflow-hidden px-5 pb-8 pt-4 sm:px-6 lg:px-8">
-      <div className="pointer-events-none absolute right-[-3rem] top-8 hidden size-36 rounded-full bg-[var(--valence-pink)]/20 sm:block" />
-      <div className="pointer-events-none absolute right-8 top-16 hidden sm:block">
-        {mascot}
-      </div>
-      <div className="relative">
-        {eyebrow ? (
-          <span className="inline-flex rounded-full bg-[var(--valence-teal-soft)] px-4 py-1.5 text-sm font-extrabold text-primary">
-            {eyebrow}
-          </span>
-        ) : null}
-        <h1 className="mt-4 max-w-2xl text-4xl font-semibold leading-[0.98] text-foreground sm:text-5xl">
-          {title}
-        </h1>
-        <p className="mt-3 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
-          {description}
-        </p>
-      </div>
-      <div className="relative grid gap-4">{children}</div>
-    </section>
   );
 }
 
@@ -696,18 +1050,9 @@ function VersionBadge({
   versions: VersionState;
 }) {
   return (
-    <div
-      className={cn(
-        "rounded-2xl border border-border bg-card/82 px-3 py-2 text-xs leading-5 text-muted-foreground shadow-sm backdrop-blur",
-        className
-      )}
-    >
-      <span className="font-extrabold text-foreground">Installed</span>{" "}
-      {versions.installedVersion}
-      <span className="mx-2 text-border">/</span>
-      <span className="font-extrabold text-foreground">Release</span>{" "}
-      {versions.releaseVersion}
-    </div>
+    <Badge className={cn("font-semibold", className)} variant="secondary">
+      Installed {versions.installedVersion} · Release {versions.releaseVersion}
+    </Badge>
   );
 }
 
@@ -719,9 +1064,28 @@ function ProviderMark({
   label: string;
 }) {
   return (
-    <span className="flex size-7 items-center justify-center rounded-xl border border-border bg-card text-sm font-black">
-      {Icon ? <Icon className="size-4" /> : label}
+    <span className="grid size-7 place-items-center rounded-md border bg-background text-xs font-bold">
+      {Icon ? <Icon /> : label}
     </span>
+  );
+}
+
+function AppScreen({
+  children,
+  role
+}: {
+  children: ReactNode;
+  role: UserRole | null;
+}) {
+  return (
+    <main
+      className="valence-app-shell min-h-dvh bg-background text-foreground"
+      style={roleAccentStyle(role)}
+    >
+      <div className="valence-screen-transition mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-[calc(env(safe-area-inset-top)+1.25rem)]">
+        {children}
+      </div>
+    </main>
   );
 }
 
@@ -740,17 +1104,15 @@ function NativeUpdateDrawer({
       open={Boolean(update.bundle)}
       shouldScaleBackground={false}
     >
-      <DrawerContent className="mx-auto max-w-xl px-[env(safe-area-inset-left)]">
+      <DrawerContent className="mx-auto max-w-xl">
         <DrawerHeader className="text-left">
           <div className="flex items-start gap-3">
-            <span className="valence-purple-surface mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-[1.1rem] text-white">
-              <CloudDownload className="size-5" />
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground">
+              <CloudDownload />
             </span>
             <div className="min-w-0 flex-1">
-              <DrawerTitle className="text-xl font-black">
-                Update ready
-              </DrawerTitle>
-              <DrawerDescription className="mt-1 leading-6">
+              <DrawerTitle>Update ready</DrawerTitle>
+              <DrawerDescription className="mt-1">
                 A new Valence app update is downloaded and ready to apply.
               </DrawerDescription>
               {update.percent !== null && update.percent < 100 ? (
@@ -762,20 +1124,11 @@ function NativeUpdateDrawer({
           </div>
         </DrawerHeader>
         <DrawerFooter className="grid gap-2 sm:grid-cols-[1fr_auto]">
-          <Button
-            className="valence-brand-button h-11 rounded-2xl text-sm font-extrabold"
-            onClick={onApplyNow}
-            type="button"
-          >
+          <Button onClick={onApplyNow} type="button">
             Apply now
           </Button>
           <DrawerClose asChild>
-            <Button
-              className="h-11 rounded-2xl text-sm font-extrabold"
-              onClick={onApplyNextLaunch}
-              type="button"
-              variant="outline"
-            >
+            <Button onClick={onApplyNextLaunch} type="button" variant="outline">
               Next app launch
             </Button>
           </DrawerClose>
@@ -785,393 +1138,496 @@ function NativeUpdateDrawer({
   );
 }
 
-function MessagesDrawer({
-  open,
-  onOpenChange
+function RoleChoiceScreen({
+  onChoose,
+  versions
 }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onChoose: (role: UserRole) => void;
+  versions: VersionState;
 }) {
   return (
-    <Drawer open={open} onOpenChange={onOpenChange} shouldScaleBackground={false}>
-      <DrawerContent className="mx-auto flex h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] max-w-3xl flex-col overflow-hidden rounded-t-[2rem] border-border bg-background px-[calc(env(safe-area-inset-left)+1rem)] pb-[calc(env(safe-area-inset-bottom)+1rem)] pr-[calc(env(safe-area-inset-right)+1rem)] pt-4">
-        <DrawerHeader className="shrink-0 px-1 pb-3 pt-1 text-left">
-          <div className="flex items-center gap-3">
-            <span className="grid size-10 place-items-center rounded-[1.1rem] bg-[var(--valence-teal-soft)] text-primary">
-              <MessageCircle className="size-5" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <DrawerTitle className="text-xl font-black">
-                Coach
-              </DrawerTitle>
-              <DrawerDescription className="mt-0.5">
-                Clinical prompts and patient context are ready.
-              </DrawerDescription>
+    <AppScreen role={null}>
+      <div className="flex items-center justify-between">
+        <BrandLogo />
+        <VersionBadge versions={versions} />
+      </div>
+      <div className="flex flex-1 flex-col justify-center gap-6">
+        <div>
+          <Badge variant="outline">Start here</Badge>
+          <h1 className="mt-4 text-4xl font-semibold leading-tight">
+            How will you use Valence?
+          </h1>
+          <p className="mt-3 text-base leading-7 text-muted-foreground">
+            Choose a role to tailor the accent color, onboarding, navigation,
+            and demo screens.
+          </p>
+        </div>
+        <div className="grid gap-3">
+          <Card className="overflow-hidden">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <HeartPulse className="text-[var(--patient-accent)]" />
+                Patient
+              </CardTitle>
+              <CardDescription>
+                Purple accent, exercises, sessions, and profile.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full" onClick={() => onChoose("patient")}>
+                Continue as patient
+              </Button>
+            </CardContent>
+          </Card>
+          <Card className="overflow-hidden">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <Stethoscope className="text-[var(--therapist-accent)]" />
+                Psychologist
+              </CardTitle>
+              <CardDescription>
+                Blue accent, patient list, session prep, and profile.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                className="w-full"
+                onClick={() => onChoose("therapist")}
+                variant="outline"
+              >
+                Continue as psychologist
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </AppScreen>
+  );
+}
+
+function CarouselScreen({
+  flow,
+  onBack,
+  onNext
+}: {
+  flow: DemoFlowState;
+  onBack: () => void;
+  onNext: () => void;
+}) {
+  const role = flow.role ?? "patient";
+
+  return (
+    <AppScreen role={role}>
+      {role === "therapist" ? (
+        <TherapistWelcomeCarousel
+          brand={<BrandLogo />}
+          index={flow.carouselIndex}
+          onBack={onBack}
+          onNext={onNext}
+        />
+      ) : (
+        <PatientWelcomeCarousel
+          brand={<BrandLogo />}
+          index={flow.carouselIndex}
+          onBack={onBack}
+          onNext={onNext}
+        />
+      )}
+    </AppScreen>
+  );
+}
+
+function AuthScreen({
+  error,
+  email,
+  isSubmitting,
+  onBack,
+  onContinueDemo,
+  onEmailChange,
+  onProvider,
+  onSubmit,
+  role,
+  status
+}: {
+  email: string;
+  error: string | null;
+  isSubmitting: boolean;
+  onBack: () => void;
+  onContinueDemo: () => void;
+  onEmailChange: (email: string) => void;
+  onProvider: (provider: Provider) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  role: UserRole;
+  status: string | null;
+}) {
+  return (
+    <AppScreen role={role}>
+      <div className="flex items-center justify-between">
+        <Button onClick={onBack} size="icon" type="button" variant="ghost">
+          <ArrowLeft />
+        </Button>
+        <BrandLogo />
+        <Badge variant="secondary">{roleContent[role].audience}</Badge>
+      </div>
+      <div className="flex flex-1 flex-col justify-center gap-6">
+        <div>
+          <Badge variant="outline">Sign in</Badge>
+          <h1 className="mt-4 text-4xl font-semibold leading-tight">
+            Enter Valence securely
+          </h1>
+          <p className="mt-3 text-base leading-7 text-muted-foreground">
+            Google, Apple, and email are wired to Supabase. The demo button lets
+            you move through the prototype without backend data.
+          </p>
+        </div>
+        <form className="flex flex-col gap-3" onSubmit={onSubmit}>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="member-email">Email</Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                autoComplete="email"
+                className="h-12 pl-10"
+                id="member-email"
+                name="email"
+                onChange={(event) => onEmailChange(event.currentTarget.value)}
+                placeholder="you@example.com"
+                type="email"
+                value={email}
+              />
             </div>
           </div>
-        </DrawerHeader>
-        <div className="min-h-0 flex-1">
-          <MessagesPage mode="drawer" />
+          <Button disabled={isSubmitting} type="submit">
+            {isSubmitting ? "Sending code" : "Send magic link or OTP"}
+          </Button>
+        </form>
+        <div className="grid gap-3">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-muted-foreground">
+            <Separator />
+            <span className="text-sm">or</span>
+            <Separator />
+          </div>
+          <Button onClick={() => onProvider("google")} type="button" variant="outline">
+            <ProviderMark label="G" />
+            Continue with Google
+          </Button>
+          <Button onClick={() => onProvider("apple")} type="button" variant="outline">
+            <ProviderMark icon={Apple} label="A" />
+            Continue with Apple
+          </Button>
+          <Button onClick={onContinueDemo} type="button" variant="secondary">
+            Continue demo without login
+          </Button>
         </div>
-      </DrawerContent>
-    </Drawer>
+        {status ? (
+          <Card>
+            <CardContent className="p-4 text-sm text-muted-foreground">
+              {status}
+            </CardContent>
+          </Card>
+        ) : null}
+        {error ? (
+          <Card className="border-destructive/30">
+            <CardContent className="p-4 text-sm text-destructive">
+              {error}
+            </CardContent>
+          </Card>
+        ) : null}
+      </div>
+    </AppScreen>
+  );
+}
+
+function OnboardingScreen({
+  flow,
+  onBack,
+  onNext,
+  onSkipToApp
+}: {
+  flow: DemoFlowState;
+  onBack: () => void;
+  onNext: () => void;
+  onSkipToApp: () => void;
+}) {
+  const role = flow.role ?? "patient";
+
+  return (
+    <AppScreen role={role}>
+      {role === "therapist" ? (
+        <TherapistOnboardingScreen
+          brand={<BrandLogo />}
+          onBack={onBack}
+          onNext={onNext}
+          onSkipToApp={onSkipToApp}
+          stepIndex={flow.onboardingStep}
+        />
+      ) : (
+        <PatientOnboardingScreen
+          brand={<BrandLogo />}
+          onBack={onBack}
+          onNext={onNext}
+          onSkipToApp={onSkipToApp}
+          stepIndex={flow.onboardingStep}
+        />
+      )}
+    </AppScreen>
   );
 }
 
 function SplashScreen({ versions }: { versions: VersionState }) {
   return (
-    <main className="valence-safe-screen relative grid min-h-dvh place-items-center overflow-hidden bg-background px-6 text-foreground">
-      <div className="valence-squiggle right-[-2rem] top-[10%] rotate-[38deg]" />
-      <div className="valence-squiggle bottom-[-2rem] left-[-2rem] rotate-[210deg]" />
-      <SparkMark className="absolute bottom-[27%] left-1/2 size-6 -translate-x-1/2" />
-      <SparkMark className="absolute right-[18%] top-[44%] size-9" />
-      <section className="flex flex-col items-center text-center">
-        <BrandLogo size="lg" />
-        <p className="mt-5 text-2xl font-semibold text-foreground">
-          Therapist platform.
+    <AppScreen role={null}>
+      <div className="flex flex-1 flex-col items-center justify-center gap-5 text-center">
+        <div className="grid size-20 place-items-center rounded-3xl bg-primary/10 text-primary">
+          <Sparkles className="size-10" />
+        </div>
+        <BrandLogo className="text-4xl" />
+        <p className="max-w-64 text-sm leading-6 text-muted-foreground">
+          Preparing your Valence workspace.
         </p>
-        <Mascot className="mt-36 size-20" tone="purple" />
-        <span className="valence-spinner mt-9 size-10" />
-        <VersionBadge className="mt-8" versions={versions} />
-      </section>
-    </main>
+        <VersionBadge versions={versions} />
+      </div>
+    </AppScreen>
   );
 }
 
-function LoginScreen({ versions }: { versions: VersionState }) {
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-  const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+function ChatDrawer({
+  messages,
+  onOpenChange,
+  onSend,
+  open,
+  role
+}: {
+  messages: ChatMessage[];
+  onOpenChange: (open: boolean) => void;
+  onSend: (body: string) => void;
+  open: boolean;
+  role: UserRole;
+}) {
+  const [draft, setDraft] = useState("");
 
-  async function requestEmailAccess(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-    setStatus(null);
+  function sendMessage() {
+    const body = draft.trim();
 
-    if (!supabase) {
-      setError("Supabase is not configured for this app yet.");
+    if (!body) {
       return;
     }
 
-    setIsSubmitting(true);
-    const { error: signInError } = await supabase.auth.signInWithOtp({
-      email: email.trim().toLowerCase(),
-      options: {
-        emailRedirectTo: getRedirectTo()
-      }
-    });
-    setIsSubmitting(false);
-
-    if (signInError) {
-      setError("We could not send the sign-in email. Check auth settings.");
-      return;
-    }
-
-    setStatus("Check your inbox for the Valence sign-in link or OTP.");
-  }
-
-  async function continueWithProvider(provider: Provider) {
-    setError(null);
-    setStatus(null);
-
-    if (!supabase) {
-      setError("Supabase is not configured for this app yet.");
-      return;
-    }
-
-    const isNative = Capacitor.isNativePlatform();
-    const { data, error: providerError } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: getRedirectTo(),
-        skipBrowserRedirect: isNative,
-        queryParams:
-          provider === "google" ? { prompt: "select_account" } : undefined
-      }
-    });
-
-    if (providerError) {
-      setError("We could not start that sign-in flow. Check auth settings.");
-      return;
-    }
-
-    if (isNative && data.url) {
-      await AppLauncher.openUrl({ url: data.url });
-    }
+    onSend(body);
+    setDraft("");
   }
 
   return (
-    <main className="valence-auth-scene relative min-h-dvh overflow-hidden bg-background pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pl-[calc(env(safe-area-inset-left)+1.25rem)] pr-[calc(env(safe-area-inset-right)+1.25rem)] pt-[calc(env(safe-area-inset-top)+1.25rem)] text-foreground sm:pl-[calc(env(safe-area-inset-left)+1.5rem)] sm:pr-[calc(env(safe-area-inset-right)+1.5rem)]">
-      <div className="valence-squiggle right-[-4rem] top-10 rotate-[35deg]" />
-      <SparkMark className="absolute right-[14%] top-[21%] size-12 bg-[var(--valence-pink)]" />
-      <section className="mx-auto flex max-w-md flex-col gap-5">
-        <div className="flex items-center justify-between">
-          <BrandLogo />
-          <button
-            aria-label="Open therapist coach"
-            className="flex size-11 items-center justify-center rounded-[1.15rem] border border-border bg-card/88 shadow-sm backdrop-blur"
-            type="button"
-          >
-            <SparkMark className="size-5 bg-[var(--valence-pink)]" />
-          </button>
-        </div>
-
-        <div className="pt-8">
-          <span className="inline-flex rounded-full bg-[var(--valence-teal-soft)] px-4 py-1.5 text-sm font-extrabold text-primary">
-            therapist platform
-          </span>
-          <h1 className="mt-6 text-4xl font-semibold leading-[0.98]">
-            Set up your clinical workspace
-          </h1>
-          <p className="mt-4 max-w-sm text-base leading-7 text-muted-foreground">
-            Profile, agenda, patients, and clinical coach in one private flow.
-          </p>
-        </div>
-
-        <div className="valence-panel grid gap-3 rounded-[1.65rem] p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-black text-primary">Step 1</p>
-              <p className="text-lg font-black">Practice profile</p>
-            </div>
-            <span className="grid size-10 place-items-center rounded-full bg-[var(--valence-pink)] text-white">
-              <UsersRound className="size-5" />
-            </span>
+    <Drawer onOpenChange={onOpenChange} open={open} shouldScaleBackground={false}>
+      <DrawerContent className="mx-auto flex h-[86dvh] max-w-md flex-col">
+        <DrawerHeader className="text-left">
+          <DrawerTitle>Messages</DrawerTitle>
+          <DrawerDescription>
+            Local chat demo for the {roleContent[role].audience.toLowerCase()} experience.
+          </DrawerDescription>
+        </DrawerHeader>
+        <div className="min-h-0 flex-1 overflow-y-auto px-4">
+          <div className="flex flex-col gap-3 pb-4">
+            {messages.map((message) => (
+              <Card
+                className={cn(
+                  "max-w-[82%] shadow-none",
+                  message.mine
+                    ? "ml-auto border-primary bg-primary text-primary-foreground"
+                    : "bg-card"
+                )}
+                key={message.id}
+              >
+                <CardContent className="p-3 text-sm leading-6">
+                  {message.body}
+                </CardContent>
+              </Card>
+            ))}
           </div>
-          <div className="grid gap-3">
+        </div>
+        <DrawerFooter className="border-t">
+          <div className="flex gap-2">
             <Input
-              className="valence-field h-12 rounded-[1rem] px-4 text-sm"
-              placeholder="Full name"
-              readOnly
-              value="Dra. Emma Lin"
+              className="h-11"
+              onChange={(event) => setDraft(event.currentTarget.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  sendMessage();
+                }
+              }}
+              placeholder="Write a message"
+              value={draft}
             />
-            <Input
-              className="valence-field h-12 rounded-[1rem] px-4 text-sm"
-              placeholder="Clinical approach"
-              readOnly
-              value="CBT, trauma-informed care"
-            />
-            <div className="grid grid-cols-2 gap-2">
-              {["Online sessions", "In-person"].map((method) => (
-                <button
-                  className="rounded-[1rem] border border-border bg-[var(--valence-teal-soft)] p-3 text-left text-xs font-black text-foreground"
-                  key={method}
-                  type="button"
-                >
-                  {method}
-                </button>
-              ))}
-            </div>
+            <Button onClick={sendMessage} size="icon" type="button">
+              <Send />
+            </Button>
           </div>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
+  );
+}
+
+function SessionDetailDrawer({
+  onOpenChange,
+  open,
+  session
+}: {
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+  session: DemoSession | null;
+}) {
+  return (
+    <Drawer onOpenChange={onOpenChange} open={open} shouldScaleBackground={false}>
+      <DrawerContent className="mx-auto max-w-md">
+        <DrawerHeader className="text-left">
+          <DrawerTitle>{session?.person ?? "Session"}</DrawerTitle>
+          <DrawerDescription>
+            {session?.date} at {session?.time}, {session?.mode}
+          </DrawerDescription>
+        </DrawerHeader>
+        <div className="grid gap-3 px-4 pb-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Session details</CardTitle>
+              <CardDescription>{session?.notes}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-2">
+              <Badge>{session?.status}</Badge>
+              <Badge variant="secondary">{session?.mode}</Badge>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Demo actions</CardTitle>
+              <CardDescription>
+                These buttons are local only, but they show how the session flow
+                will feel.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-2">
+              <Button type="button">Join</Button>
+              <Button type="button" variant="outline">
+                Reschedule
+              </Button>
+            </CardContent>
+          </Card>
         </div>
+        <DrawerFooter>
+          <DrawerClose asChild>
+            <Button type="button" variant="outline">
+              Close
+            </Button>
+          </DrawerClose>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
+  );
+}
 
-        <form className="grid gap-3" onSubmit={requestEmailAccess}>
-          <Label className="sr-only" htmlFor="member-email">
-            Email
-          </Label>
-          <div className="relative">
-            <Mail className="absolute left-5 top-1/2 size-5 -translate-y-1/2 text-primary" />
-            <Input
-              autoComplete="email"
-              className="valence-field h-14 rounded-[1.2rem] pl-14 text-base shadow-sm"
-              id="member-email"
-              name="email"
-              onChange={(event) => setEmail(event.currentTarget.value)}
-              placeholder="Clinical email"
-              required
-              type="email"
-              value={email}
-            />
-          </div>
-          <Button
-            className="valence-brand-button h-14 rounded-[1.2rem] text-lg font-extrabold"
-            disabled={isSubmitting}
-            type="submit"
-          >
-            {isSubmitting ? "Sending" : "Send secure code"}
-          </Button>
-        </form>
-
-        <div className="grid gap-3">
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-5 text-muted-foreground">
-            <span className="h-px bg-border" />
-            <span className="font-semibold">or</span>
-            <span className="h-px bg-border" />
-          </div>
-  <Button
-            className="h-12 rounded-[1.15rem] border-border bg-card/88 text-base font-extrabold"
-            onClick={() => void continueWithProvider("google")}
-            type="button"
-            variant="outline"
-          >
-            <ProviderMark label="G" />
-            Continue with Google
-          </Button>
-          <Button
-            className="h-12 rounded-[1.15rem] border-border bg-card/88 text-base font-extrabold"
-            onClick={() => void continueWithProvider("apple")}
-            type="button"
-            variant="outline"
-          >
-            <ProviderMark icon={Apple} label="A" />
-            Continue with Apple
-          </Button>
+function PatientDetailDrawer({
+  onOpenChange,
+  open,
+  patient
+}: {
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+  patient: DemoPatient | null;
+}) {
+  return (
+    <Drawer onOpenChange={onOpenChange} open={open} shouldScaleBackground={false}>
+      <DrawerContent className="mx-auto max-w-md">
+        <DrawerHeader className="text-left">
+          <DrawerTitle>{patient?.name ?? "Patient"}</DrawerTitle>
+          <DrawerDescription>{patient?.focus}</DrawerDescription>
+        </DrawerHeader>
+        <div className="grid gap-3 px-4 pb-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Patient snapshot</CardTitle>
+              <CardDescription>
+                Last seen {patient?.lastSeen}. Current risk is {patient?.risk}.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3">
+              <Progress value={patient?.progress ?? 0} />
+              <div className="grid grid-cols-3 gap-2 text-center text-sm">
+                <Badge variant="secondary">Progress {patient?.progress}%</Badge>
+                <Badge variant="outline">Risk {patient?.risk}</Badge>
+                <Badge variant="outline">{patient?.lastSeen}</Badge>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Next note</CardTitle>
+              <CardDescription>
+                Review session goals and ask what changed since the last check-in.
+              </CardDescription>
+            </CardHeader>
+          </Card>
         </div>
-
-        {status ? (
-          <div className="valence-panel rounded-[1.35rem] p-4 text-sm font-semibold leading-6">
-            {status}
-          </div>
-        ) : null}
-
-        {error ? (
-          <div className="rounded-[1.35rem] border border-border bg-card/88 p-4 text-sm font-semibold leading-6 text-muted-foreground">
-            {error}
-          </div>
-        ) : null}
-
-        <div className="valence-panel relative mt-1 overflow-hidden rounded-[1.75rem] p-5">
-          <div className="relative z-10 max-w-[14rem]">
-            <p className="text-sm font-extrabold text-primary">
-              Realtime ready
-            </p>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              Patient events and coach notes are prepared for Supabase live sync.
-            </p>
-          </div>
-          <Mascot
-            className="absolute bottom-[-1.25rem] right-[-0.75rem] size-20"
-            tone="yellow"
-          />
-        </div>
-        <VersionBadge className="self-center" versions={versions} />
-      </section>
-    </main>
+        <DrawerFooter>
+          <DrawerClose asChild>
+            <Button type="button">Close details</Button>
+          </DrawerClose>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
   );
 }
 
 function WorkspaceShell({
   activePage,
   children,
-  eventCount,
-  lastEvent,
-  user,
-  versions,
   onNavigate,
-  onSignOut
+  onOpenMessages,
+  onReset,
+  role
 }: {
   activePage: PageKey;
   children: ReactNode;
-  eventCount: number;
-  lastEvent: string;
-  user: User;
-  versions: VersionState;
   onNavigate: (page: PageKey) => void;
-  onSignOut: () => void;
+  onOpenMessages: () => void;
+  onReset: () => void;
+  role: UserRole;
 }) {
-  const email = user.email ?? "Member";
-  const [messagesOpen, setMessagesOpen] = useState(false);
-  const activeNav = pageItems[activePage];
+  const navItems = role === "therapist" ? therapistNavItems : patientNavItems;
   const activeNavIndex = Math.max(
     0,
     navItems.findIndex((item) => item.page === activePage)
   );
 
-  function handleNavigate(event: MouseEvent<HTMLAnchorElement>, page: PageKey) {
-    event.preventDefault();
-    onNavigate(page);
-  }
-
-  const aside = (
-    <aside className="flex h-full w-72 flex-col border-r border-border bg-card/92 backdrop-blur">
-      <div className="flex h-20 items-center border-b border-border px-5">
-        <BrandLogo size="sm" />
-      </div>
-      <nav className="flex flex-1 flex-col gap-2 p-3">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = item.page === activePage;
-
-          return (
-            <a
-              className={cn(
-                "flex h-12 items-center gap-3 rounded-2xl px-4 text-left text-sm font-extrabold transition-all",
-                isActive
-                  ? "bg-[var(--valence-teal-soft)] text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-              href={item.href}
-              key={item.label}
-              onClick={(event) => handleNavigate(event, item.page)}
-            >
-              <Icon className="size-5" />
-              {item.label}
-            </a>
-          );
-        })}
-      </nav>
-      <div className="border-t border-border p-4">
-        <VersionBadge className="mb-3 bg-card" versions={versions} />
-        <p className="truncate text-sm font-extrabold">{email}</p>
-        <Button
-          className="mt-3 w-full justify-start rounded-2xl"
-          onClick={onSignOut}
-          type="button"
-          variant="outline"
-        >
-          <LogOut data-icon="inline-start" />
-          Sign out
-        </Button>
-      </div>
-    </aside>
-  );
-
   return (
-    <div className="min-h-dvh overflow-x-hidden bg-background pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] text-foreground lg:grid lg:grid-cols-[18rem_1fr]">
-      <div className="hidden lg:block" aria-hidden="true" />
-      <div className="fixed bottom-0 left-[env(safe-area-inset-left)] top-0 z-40 hidden lg:block">
-        {aside}
-      </div>
-
-      <main className="min-w-0 lg:col-start-2">
-        <header className="fixed left-[env(safe-area-inset-left)] right-[env(safe-area-inset-right)] top-0 z-50 flex min-h-[calc(4.25rem+env(safe-area-inset-top))] items-end justify-between border-b border-border/60 bg-background/92 px-5 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.65rem)] backdrop-blur-xl sm:px-6 lg:left-[calc(18rem+env(safe-area-inset-left))] lg:min-h-16 lg:px-8 lg:pt-0">
-          <BrandLogo className="lg:hidden" size="sm" />
-          <div className="hidden lg:block">
-            <p className="text-sm font-extrabold">{activeNav?.label}</p>
-            <p className="text-xs font-semibold text-muted-foreground">
-              {activeNav?.description}
-            </p>
+    <div
+      className="valence-app-shell min-h-dvh bg-background text-foreground"
+      style={roleAccentStyle(role)}
+    >
+      <header className="fixed left-[env(safe-area-inset-left)] right-[env(safe-area-inset-right)] top-0 z-30 border-b bg-background/88 px-5 pb-3 pt-[calc(env(safe-area-inset-top)+0.8rem)] backdrop-blur-xl">
+        <div className="mx-auto flex max-w-md items-center justify-between">
+          <BrandLogo />
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">{roleContent[role].audience}</Badge>
+            <Button
+              aria-label="Open messages"
+              onClick={onOpenMessages}
+              size="icon"
+              type="button"
+              variant="outline"
+            >
+              <MessageCircle />
+            </Button>
           </div>
-          <div className="hidden min-w-0 flex-1 items-center justify-end gap-2 px-4 lg:flex">
-            <span className="size-2 rounded-full bg-primary" />
-            <p className="truncate text-xs font-bold text-muted-foreground">
-              {eventCount} live updates, {lastEvent}
-            </p>
-          </div>
-          <button
-            aria-label="Open messages"
-            className="flex size-11 items-center justify-center rounded-[1.15rem] border border-border bg-card/88 shadow-sm backdrop-blur"
-            onClick={() => setMessagesOpen(true)}
-            type="button"
-          >
-            <SparkMark className="size-5 bg-[var(--valence-pink)]" />
-          </button>
-        </header>
-        <div className="pb-[calc(6.75rem+env(safe-area-inset-bottom))] pt-[calc(4.25rem+env(safe-area-inset-top))] lg:pb-0 lg:pt-16">
-          {children}
         </div>
+      </header>
+      <main className="mx-auto max-w-md px-5 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-[calc(5rem+env(safe-area-inset-top))]">
+        <div className="valence-screen-transition">{children}</div>
       </main>
-
-      <nav
-        aria-label="Primary"
-        className="fixed bottom-[calc(0.55rem+env(safe-area-inset-bottom))] left-[calc(0.75rem+env(safe-area-inset-left))] right-[calc(0.75rem+env(safe-area-inset-right))] z-40 lg:hidden"
-      >
-        <div className="relative mx-auto grid max-w-sm grid-cols-4 rounded-[1.7rem] border border-border bg-card/94 p-1.5 shadow-[0_18px_55px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+      <nav className="fixed bottom-[calc(0.65rem+env(safe-area-inset-bottom))] left-[calc(0.75rem+env(safe-area-inset-left))] right-[calc(0.75rem+env(safe-area-inset-right))] z-30">
+        <div className="relative mx-auto grid max-w-md grid-cols-4 rounded-2xl border bg-card/95 p-1.5 shadow-lg backdrop-blur-xl">
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute bottom-1.5 left-1.5 top-1.5 z-0 rounded-[1.35rem] bg-[var(--valence-teal-soft)] transition-transform duration-300 ease-out"
+            className="absolute bottom-1.5 left-1.5 top-1.5 z-0 rounded-xl bg-primary/12 transition-transform duration-300 ease-out"
             style={{
               transform: `translateX(${activeNavIndex * 100}%)`,
               width: "calc((100% - 0.75rem) / 4)"
@@ -1182,567 +1638,413 @@ function WorkspaceShell({
             const isActive = item.page === activePage;
 
             return (
-              <a
-                aria-current={isActive ? "page" : undefined}
+              <Button
                 className={cn(
-                  "relative z-10 flex min-h-13 flex-col items-center justify-center gap-1 rounded-[1.35rem] px-1 text-[0.58rem] font-extrabold leading-none transition-all duration-200 active:scale-[0.97]",
-                  isActive
-                    ? "text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  "relative z-10 h-14 flex-col gap-1 rounded-xl text-[0.66rem]",
+                  isActive && "text-primary"
                 )}
-                href={item.href}
                 key={item.page}
-                onClick={(event) => handleNavigate(event, item.page)}
+                onClick={() => onNavigate(item.page)}
+                type="button"
+                variant="ghost"
               >
-                <Icon className="size-5" strokeWidth={2.4} />
-                <span>{item.label}</span>
-              </a>
+                <Icon />
+                {item.label}
+              </Button>
             );
           })}
         </div>
       </nav>
-
-      <MessagesDrawer open={messagesOpen} onOpenChange={setMessagesOpen} />
+      <button
+        className="sr-only"
+        onClick={onReset}
+        type="button"
+      >
+        Reset demo
+      </button>
     </div>
   );
 }
 
-function HomePage({
-  pushRegistration,
-  onEnablePushNotifications
+function SectionHeader({
+  eyebrow,
+  title,
+  description
 }: {
-  pushRegistration: PushRegistrationState;
-  onEnablePushNotifications: () => void;
+  description: string;
+  eyebrow: string;
+  title: string;
 }) {
-  const pushDescription =
-    pushRegistration.status === "registered"
-      ? "This device is registered for Valence notifications."
-      : pushRegistration.status === "denied"
-        ? "Notifications are disabled in system settings for this device."
-        : pushRegistration.status === "unsupported"
-          ? "Push notifications are only available in the native app."
-          : "Enable care reminders and important account notifications.";
+  return (
+    <div className="mb-5">
+      <Badge variant="outline">{eyebrow}</Badge>
+      <h1 className="mt-3 text-3xl font-semibold leading-tight">{title}</h1>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+        {description}
+      </p>
+    </div>
+  );
+}
+
+function HomePage({ role }: { role: UserRole }) {
+  return (
+    <section>
+      <SectionHeader
+        description="The rest of the app is local demo UI, so you can move freely and test the feel."
+        eyebrow="Demo"
+        title="This is the home page"
+      />
+      <Card>
+        <CardHeader>
+          <CardTitle>Welcome back</CardTitle>
+          <CardDescription>
+            {role === "therapist"
+              ? "Your therapist workspace is ready for sessions and patients."
+              : "Your patient workspace is ready for sessions and exercises."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          <Progress value={role === "therapist" ? 74 : 62} />
+          <div className="grid grid-cols-2 gap-3">
+            <Card className="shadow-none">
+              <CardContent className="p-4">
+                <p className="text-2xl font-semibold">
+                  {role === "therapist" ? "4" : "2"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Upcoming sessions
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="shadow-none">
+              <CardContent className="p-4">
+                <p className="text-2xl font-semibold">
+                  {role === "therapist" ? "12" : "3"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Active items
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
+function SessionsPage({
+  onSelectSession,
+  role
+}: {
+  onSelectSession: (session: DemoSession) => void;
+  role: UserRole;
+}) {
+  const sessions = role === "therapist" ? therapistSessions : demoSessions;
 
   return (
-    <PageChrome
-      description="The clinical profile combines onboarding answers, notes, and patient activity into one view."
-      eyebrow="patient profile"
-      mascot={<Mascot className="size-24" tone="purple" />}
-      title="Sofía Martínez"
-    >
-      <div className="valence-panel grid gap-4 rounded-[1.6rem] p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-black text-primary">Active patient</p>
-            <p className="mt-1 text-2xl font-black">23 questions completed</p>
-            <p className="mt-2 max-w-sm text-sm font-semibold leading-6 text-muted-foreground">
-              Primary goals: anxiety management, sleep consistency, and conflict recovery.
-            </p>
-          </div>
-          <span className="grid size-14 shrink-0 place-items-center rounded-[1.25rem] bg-[var(--valence-pink)] text-white">
-            <UserRound className="size-7" />
-          </span>
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            ["Risk", "Low"],
-            ["Mood", "Stable"],
-            ["Last seen", "Today"]
-          ].map(([label, value]) => (
-            <div className="rounded-[1.1rem] bg-[var(--valence-teal-soft)] p-3" key={label}>
-              <p className="text-xs font-bold text-muted-foreground">{label}</p>
-              <p className="mt-1 text-sm font-black">{value}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        {[
-          ["Fortalezas", "Clear emotional vocabulary, keeps routines, asks for support."],
-          ["Puntos de atención", "Avoidance rises after work conflict and poor sleep."],
-          ["Plan sugerido", "Weekly exposure ladder, sleep log, and brief post-session check-in."],
-          ["Método", "CBT with trauma-informed pacing and structured homework."]
-        ].map(([title, detail]) => (
-          <article className="valence-panel rounded-[1.35rem] p-4" key={title}>
-            <p className="font-black text-primary">{title}</p>
-            <p className="mt-2 text-sm font-semibold leading-6 text-muted-foreground">
-              {detail}
-            </p>
-          </article>
+    <section>
+      <SectionHeader
+        description="Tap any card to open session details in a bottom drawer."
+        eyebrow="Sessions"
+        title="Upcoming sessions"
+      />
+      <div className="grid gap-3">
+        {sessions.map((session) => (
+          <Card
+            className="cursor-pointer transition-transform active:scale-[0.99]"
+            key={session.id}
+            onClick={() => onSelectSession(session)}
+          >
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="text-xl">{session.person}</CardTitle>
+                  <CardDescription>
+                    {session.date}, {session.time}
+                  </CardDescription>
+                </div>
+                <Badge>{session.status}</Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="flex items-center justify-between pt-0 text-sm text-muted-foreground">
+              <span>{session.mode}</span>
+              <ChevronRight />
+            </CardContent>
+          </Card>
         ))}
       </div>
-
-      <div className="valence-panel flex items-center justify-between gap-3 rounded-[1.35rem] p-4">
-        <div className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-[1.1rem] bg-[var(--valence-teal-soft)] text-primary">
-            <Bell className="size-5" />
-          </span>
-          <div>
-            <p className="font-black">Notificaciones</p>
-            <p className="text-sm font-semibold leading-6 text-muted-foreground">
-              {pushDescription}
-            </p>
-          </div>
-        </div>
-        <Button
-          className="rounded-2xl"
-          disabled={pushRegistration.status === "registered"}
-          onClick={onEnablePushNotifications}
-          type="button"
-          variant={pushRegistration.status === "registered" ? "outline" : "default"}
-        >
-          {pushRegistration.status === "registered" ? "Enabled" : "Enable"}
-        </Button>
-      </div>
-    </PageChrome>
+    </section>
   );
 }
 
 function ExercisesPage() {
-  const dimensions = [
-    ["Regulación", 72],
-    ["Sueño", 58],
-    ["Relaciones", 66],
-    ["Energía", 49]
-  ] as const;
-
   return (
-    <PageChrome
-      description="A live clinical snapshot fed by notes, check-ins, and patient activity."
-      eyebrow="seguimiento"
-      mascot={<SparkMark className="size-14 bg-[var(--valence-pink)]" />}
-      title="Clinical snapshot"
-    >
-      <div className="valence-panel rounded-[1.6rem] p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-black text-primary">This week</p>
-            <p className="mt-1 text-2xl font-black">More stable, sleep still uneven</p>
-          </div>
-          <span className="grid size-12 place-items-center rounded-[1.2rem] bg-[var(--valence-pink)] text-white">
-            <Activity className="size-6" />
-          </span>
-        </div>
-        <div className="mt-5 grid gap-4">
-          {dimensions.map(([label, value]) => (
-            <div key={label}>
-              <div className="flex items-center justify-between text-sm font-bold">
-                <span>{label}</span>
-                <span className="text-primary">{value}%</span>
-              </div>
-              <div className="mt-2 h-2 rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-primary"
-                  style={{ width: `${value}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        {[
-          {
-            title: "Insight",
-            detail: "Stress spikes after 8 PM when work notes mention evaluation or deadlines.",
-            icon: Activity,
-            tone: "lime"
-          },
-          {
-            title: "Clinical note",
-            detail: "Patient completed 4 of 5 reflections and skipped one sleep log.",
-            icon: FileText,
-            tone: "pink"
-          },
-          {
-            title: "Next focus",
-            detail: "Review cognitive distortions around performance feedback.",
-            icon: Target,
-            tone: "lime"
-          },
-          {
-            title: "Realtime",
-            detail: "Snapshot listens for patient activity broadcasts from Supabase.",
-            icon: Sparkles,
-            tone: "pink"
-          }
-        ].map((exercise) => {
-          const Icon = exercise.icon;
-
-          return (
-            <button
-              className="valence-panel flex items-center justify-between rounded-[1.25rem] p-4 text-left transition active:scale-[0.98]"
-              key={exercise.title}
-              type="button"
-            >
-              <span className="flex items-center gap-4">
-                <span
-                  className={cn(
-                    "grid size-11 place-items-center rounded-[1.1rem] text-white",
-                    exercise.tone === "lime" && "bg-primary text-primary-foreground",
-                    exercise.tone === "pink" && "bg-[var(--valence-pink)]"
-                  )}
-                >
-                  <Icon className="size-5" />
-                </span>
-                <span>
-                  <span className="block text-base font-black">
-                    {exercise.title}
-                  </span>
-                  <span className="mt-1 block text-sm font-semibold leading-6 text-muted-foreground">
-                    {exercise.detail}
-                  </span>
-                </span>
-              </span>
-              <ChevronRight className="size-5" />
-            </button>
-          );
-        })}
-      </div>
-
-      <Button className="valence-brand-button h-14 rounded-[1.2rem] text-lg font-extrabold">
-        <PenLine className="size-5" />
-        Add clinical note
-      </Button>
-    </PageChrome>
-  );
-}
-
-function SessionsPage() {
-  return (
-    <PageChrome
-      description="Clinical guidance, session preparation, and suggested next steps for the therapist."
-      eyebrow="clinical coach"
-      mascot={<Mascot className="size-28" tone="purple" />}
-      title="Coach"
-    >
-      <div className="valence-purple-surface relative overflow-hidden rounded-[1.5rem] p-5 text-white">
-        <p className="text-sm font-black text-primary">Suggested focus</p>
-        <p className="mt-2 max-w-md text-2xl font-black leading-8 text-foreground">
-          Begin next session with sleep patterns before moving into workplace triggers.
-        </p>
-        <p className="mt-4 text-sm font-semibold leading-6 text-muted-foreground">
-          Generated from the last check-in, activity timeline, and your previous note.
-        </p>
-        <Mascot className="absolute bottom-4 right-6 size-16" tone="purple" />
-      </div>
-
+    <section>
+      <SectionHeader
+        description="A patient-only area for simple guided practices."
+        eyebrow="Exercises"
+        title="Practice library"
+      />
       <div className="grid gap-3">
         {[
-          ["Before session", "Review last panic log and note the avoided task."],
-          ["Question to ask", "What changed the night you slept better?"],
-          ["Suggested homework", "One 6 minute breathing practice after work, 3 times."]
-        ].map(([title, detail]) => (
-          <article className="valence-panel rounded-[1.35rem] p-4" key={title}>
-            <p className="text-sm font-black text-primary">{title}</p>
-            <p className="mt-2 text-sm font-semibold leading-6 text-muted-foreground">
-              {detail}
-            </p>
-          </article>
+          ["Breathing reset", "Six minutes to slow down before sleep.", 35],
+          ["Thought record", "Capture a thought and gently test it.", 62],
+          ["Grounding", "Use senses to return to the room.", 18]
+        ].map(([title, description, progress]) => (
+          <Card key={title}>
+            <CardHeader>
+              <CardTitle className="text-xl">{title}</CardTitle>
+              <CardDescription>{description}</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3">
+              <Progress value={Number(progress)} />
+              <Button type="button" variant="outline">
+                Open exercise
+              </Button>
+            </CardContent>
+          </Card>
         ))}
       </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <Button className="valence-brand-button h-14 rounded-[1.2rem] text-base font-extrabold">
-          <Sparkles className="size-5" />
-          Generate plan
-        </Button>
-        <Button className="h-14 rounded-[1.2rem] border-border bg-card/88 text-base font-extrabold" variant="outline">
-          <FileText className="size-5" />
-          Save note
-        </Button>
-      </div>
-    </PageChrome>
+    </section>
   );
 }
 
-function MessagesPage({ mode = "page" }: { mode?: "drawer" | "page" }) {
-  const isDrawer = mode === "drawer";
-  const messages = [
-    {
-      body: "Sofía's last check-in points to sleep disruption after workplace feedback.",
-      id: "clinician-welcome",
-      mine: false,
-      time: "10:00 AM"
-    },
-    {
-      body: "Give me a quick session opening and one homework idea.",
-      id: "member-anxious",
-      mine: true,
-      time: "10:01 AM"
-    },
-    {
-      body: "Open with sleep context, then ask what changed on the night she slept better.",
-      id: "clinician-validate",
-      mine: false,
-      time: "10:02 AM"
-    },
-    {
-      body: "Keep it gentle and short, please.",
-      id: "member-overwhelmed",
-      mine: true,
-      time: "10:03 AM"
-    },
-    {
-      body: "Suggested homework: one 6 minute breathing reset after work, three times this week.",
-      id: "clinician-breathing",
-      mine: false,
-      time: "10:04 AM"
-    }
-  ];
+function PatientsPage({
+  onSelectPatient
+}: {
+  onSelectPatient: (patient: DemoPatient) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const filteredPatients = demoPatients.filter((patient) =>
+    `${patient.name} ${patient.focus}`
+      .toLowerCase()
+      .includes(query.trim().toLowerCase())
+  );
 
   return (
-    <section
-      className={cn(
-        "flex flex-col gap-4",
-        isDrawer
-          ? "h-full min-h-0 px-1 pb-0 pt-0"
-          : "mx-auto max-w-3xl px-5 pb-8 pt-3 sm:px-6 lg:px-8"
-      )}
-    >
-      <div
-        className={cn(
-          "z-20 flex shrink-0 items-center gap-3 rounded-[1.35rem] border border-border bg-card/90 p-3 shadow-sm backdrop-blur",
-          !isDrawer && "sticky top-[calc(4.25rem+env(safe-area-inset-top))]"
-        )}
-      >
-        <span className="grid size-12 place-items-center rounded-full bg-[var(--valence-teal-soft)] text-primary">
-          <UserRound className="size-6" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-lg font-black">Clinical coach</p>
-          <p className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-            <span className="size-3 rounded-full bg-emerald-500" />
-            Active now
-          </p>
-        </div>
-        <button
-          className="grid size-10 place-items-center rounded-[1.1rem] border border-border bg-card"
-          type="button"
-        >
-          <Phone className="size-5" />
-        </button>
+    <section>
+      <SectionHeader
+        description="Search patients and open details without leaving the list."
+        eyebrow="Patients"
+        title="Patient list"
+      />
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          className="h-12 pl-10"
+          onChange={(event) => setQuery(event.currentTarget.value)}
+          placeholder="Search by name or focus"
+          value={query}
+        />
       </div>
-
-      <span className="w-fit rounded-full bg-[var(--valence-teal-soft)] px-4 py-1.5 text-sm font-extrabold text-primary">
-        clinical prompt
-      </span>
-
-      <div
-        className={cn(
-          "min-h-0",
-          isDrawer ? "flex-1 overflow-y-auto pr-1" : "grid gap-4"
-        )}
-      >
-        <div className="grid gap-4">
-          {messages.map((message) => (
-            <div
-              className={cn(
-                "max-w-[82%] rounded-[1.3rem] p-4 shadow-sm",
-                message.mine
-                  ? "valence-purple-surface ml-auto text-white"
-                  : "valence-panel text-foreground"
-              )}
-              key={message.id}
-            >
-              <p className="text-base font-semibold leading-7">{message.body}</p>
-              <p
-                className={cn(
-                  "mt-3 text-sm font-bold",
-                  message.mine ? "text-white/82" : "text-muted-foreground"
-                )}
-              >
-                {message.time}
+      <div className="grid gap-3">
+        {filteredPatients.map((patient) => (
+          <Card
+            className="cursor-pointer transition-transform active:scale-[0.99]"
+            key={patient.id}
+            onClick={() => onSelectPatient(patient)}
+          >
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="text-xl">{patient.name}</CardTitle>
+                  <CardDescription>{patient.focus}</CardDescription>
+                </div>
+                <Badge variant={patient.risk === "Low" ? "secondary" : "outline"}>
+                  {patient.risk}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="grid gap-2 pt-0">
+              <Progress value={patient.progress} />
+              <p className="text-sm text-muted-foreground">
+                Last seen {patient.lastSeen}
               </p>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-5">
-          <p className="text-sm font-semibold text-muted-foreground">
-            Need help getting started?
-          </p>
-          <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
-            {["I feel overwhelmed", "Can not sleep", "Racing thoughts"].map(
-              (prompt) => (
-                <button
-                  className="whitespace-nowrap rounded-full border border-primary/55 bg-card px-4 py-2 text-sm font-extrabold text-primary"
-                  key={prompt}
-                  type="button"
-                >
-                  <Sparkles className="mr-1 inline size-4" />
-                  {prompt}
-                </button>
-              )
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div
-        className={cn(
-          "z-20 flex shrink-0 items-center gap-3",
-          !isDrawer && "sticky bottom-[calc(6.5rem+env(safe-area-inset-bottom))]"
-        )}
-      >
-        <button
-          className="valence-brand-button grid size-12 place-items-center rounded-full text-white"
-          type="button"
-        >
-          +
-        </button>
-        <div className="flex h-12 min-w-0 flex-1 items-center rounded-full border border-border bg-card px-5 text-sm text-muted-foreground shadow-sm">
-          Write a message&hellip;
-        </div>
-        <button
-          className="valence-brand-button grid size-12 place-items-center rounded-full text-white"
-          type="button"
-        >
-          <Send className="size-5" />
-        </button>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </section>
   );
 }
 
 function ProfilePage({
-  user,
-  versions,
-  onSignOut
+  onEnablePushNotifications,
+  onReset,
+  onSignOut,
+  pushRegistration,
+  role,
+  versions
 }: {
-  user: User;
-  versions: VersionState;
+  onEnablePushNotifications: () => void;
+  onReset: () => void;
   onSignOut: () => void;
+  pushRegistration: PushRegistrationState;
+  role: UserRole;
+  versions: VersionState;
 }) {
-  const activity = [
-    ["Today, 8:42 AM", "Completed mood check-in", "Mood stable, stress 4/10"],
-    ["Yesterday, 10:11 PM", "Journal entry", "Work conflict and sleep concerns"],
-    ["May 16, 7:30 PM", "Exercise", "Finished breathing reset"],
-    ["May 15, 6:05 PM", "Coach summary", "Clinical note reviewed"]
-  ] as const;
+  const pushCopy =
+    pushRegistration.status === "registered"
+      ? "This device is registered for notifications."
+      : pushRegistration.status === "denied"
+        ? "Notifications are disabled in system settings."
+        : pushRegistration.status === "unsupported"
+          ? "Push notifications are only available in the native app."
+          : "Enable local notification registration for the device.";
 
   return (
-    <PageChrome
-      description="A chronological view of patient activity from newest to oldest."
-      eyebrow="actividad"
-      mascot={<SparkMark className="size-9 bg-[var(--valence-pink)]" />}
-      title="Patient timeline"
-    >
-      <div className="valence-panel rounded-[1.6rem] p-5">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-black text-primary">Live activity</p>
-            <p className="mt-1 text-2xl font-black">4 updates this week</p>
-          </div>
-          <span className="grid size-12 place-items-center rounded-[1.2rem] bg-primary text-primary-foreground">
-            <Clock className="size-6" />
-          </span>
-        </div>
-      </div>
-
+    <section>
+      <SectionHeader
+        description="Review demo settings, versions, and device permissions."
+        eyebrow="Profile"
+        title={`${roleContent[role].audience} profile`}
+      />
       <div className="grid gap-3">
-        {activity.map(([time, title, detail], index) => (
-          <article className="valence-panel relative rounded-[1.35rem] p-4 pl-14" key={title}>
-            <span className="absolute left-4 top-4 grid size-8 place-items-center rounded-full bg-[var(--valence-teal-soft)] text-primary">
-              {index === 0 ? <span className="size-2 rounded-full bg-primary" /> : <Check className="size-4" />}
-            </span>
-            <p className="text-xs font-bold text-muted-foreground">{time}</p>
-            <p className="mt-1 font-black">{title}</p>
-            <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">
-              {detail}
-            </p>
-          </article>
-        ))}
+        <Card>
+          <CardHeader>
+            <CardTitle>Demo account</CardTitle>
+            <CardDescription>
+              Role, accent color, and onboarding are local to this device.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            <Badge>{roleContent[role].audience}</Badge>
+            <VersionBadge versions={versions} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bell />
+              Notifications
+            </CardTitle>
+            <CardDescription>{pushCopy}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              disabled={pushRegistration.status === "registered"}
+              onClick={onEnablePushNotifications}
+              type="button"
+              variant="outline"
+            >
+              {pushRegistration.status === "registered" ? "Enabled" : "Enable"}
+            </Button>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Prototype controls</CardTitle>
+            <CardDescription>
+              Reset the first-run flow whenever you want to test another role.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            <Button onClick={onReset} type="button" variant="outline">
+              Reset demo flow
+            </Button>
+            <Button onClick={onSignOut} type="button" variant="ghost">
+              <LogOut data-icon="inline-start" />
+              Sign out of Supabase
+            </Button>
+          </CardContent>
+        </Card>
       </div>
-
-      <div className="valence-panel overflow-hidden rounded-[1.5rem]">
-        {[
-          ["Realtime source", "Supabase broadcast channel"],
-          ["Signed in as", user.email ?? "Valence therapist"],
-          ["Release", versions.releaseVersion]
-        ].map(([title, detail]) => (
-          <div
-            className="flex w-full items-center justify-between gap-3 border-b border-border/80 p-4 last:border-b-0"
-            key={title}
-          >
-            <span>
-              <span className="block text-sm font-black">{title}</span>
-              <span className="mt-1 block text-sm font-semibold leading-5 text-muted-foreground">
-                {detail}
-              </span>
-            </span>
-            <ChevronRight className="size-5 text-muted-foreground" />
-          </div>
-        ))}
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <VersionBadge versions={versions} />
-        <Button
-          className="h-13 rounded-2xl font-extrabold"
-          onClick={onSignOut}
-          type="button"
-          variant="outline"
-        >
-          <LogOut className="size-4" />
-          Sign out
-        </Button>
-      </div>
-    </PageChrome>
+    </section>
   );
 }
 
 function ActivePage({
+  onEnablePushNotifications,
+  onReset,
+  onSelectPatient,
+  onSelectSession,
+  onSignOut,
   page,
   pushRegistration,
-  user,
-  versions,
-  onEnablePushNotifications,
-  onSignOut
+  role,
+  versions
 }: {
+  onEnablePushNotifications: () => void;
+  onReset: () => void;
+  onSelectPatient: (patient: DemoPatient) => void;
+  onSelectSession: (session: DemoSession) => void;
+  onSignOut: () => void;
   page: PageKey;
   pushRegistration: PushRegistrationState;
-  user: User;
+  role: UserRole;
   versions: VersionState;
-  onEnablePushNotifications: () => void;
-  onSignOut: () => void;
 }) {
-  switch (page) {
-    case "exercises":
-      return <ExercisesPage />;
-    case "sessions":
-      return <SessionsPage />;
-    case "messages":
-      return <MessagesPage />;
-    case "profile":
+  if (role === "patient") {
+    if (page === "sessions") {
+      return <PatientSessionsScreen onSelectSession={onSelectSession} />;
+    }
+
+    if (page === "exercises") {
+      return <PatientExercisesScreen />;
+    }
+
+    if (page === "profile") {
       return (
-        <ProfilePage
+        <PatientProfileScreen
+          onEnablePushNotifications={onEnablePushNotifications}
+          onReset={onReset}
           onSignOut={onSignOut}
-          user={user}
+          pushRegistration={pushRegistration}
           versions={versions}
         />
       );
-    case "home":
-      return (
-        <HomePage
-          onEnablePushNotifications={onEnablePushNotifications}
-          pushRegistration={pushRegistration}
-        />
-      );
+    }
+
+    return <PatientHomeScreen />;
   }
+
+  if (page === "sessions") {
+    return <TherapistSessionsScreen onSelectSession={onSelectSession} />;
+  }
+
+  if (page === "patients") {
+    return <TherapistPatientsScreen onSelectPatient={onSelectPatient} />;
+  }
+
+  if (page === "profile") {
+    return (
+      <TherapistProfileScreen
+        onEnablePushNotifications={onEnablePushNotifications}
+        onReset={onReset}
+        onSignOut={onSignOut}
+        pushRegistration={pushRegistration}
+        versions={versions}
+      />
+    );
+  }
+
+  return <TherapistHomeScreen />;
 }
 
 export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const versions = useAppVersions();
   const activePage = useActivePage(page);
+  const [flow, setFlow] = useDemoFlow();
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [messagesOpen, setMessagesOpen] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<DemoSession | null>(null);
+  const [selectedPatient, setSelectedPatient] = useState<DemoPatient | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    {
+      body: "Hi, this is the local message drawer. Send anything to test the interaction.",
+      id: "seed",
+      mine: false
+    }
+  ]);
   const [authState, dispatchAuth] = useReducer(authReducer, {
     isLoading: true,
     user: null
   });
-  const clinicianEvents = useClinicianRealtimeEvents(authState.user);
   const [nativeUpdate, dispatchNativeUpdate] = useReducer(nativeUpdateReducer, {
     bundle: null,
     error: null,
@@ -1754,6 +2056,7 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
       status: Capacitor.isNativePlatform() ? "idle" : "unsupported",
       token: null
     });
+  const role = flow.role ?? "patient";
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) {
@@ -1774,56 +2077,36 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
     return bindPushNotificationLifecycle(setPushRegistration);
   }, []);
 
-  async function enablePushNotifications() {
-    if (!Capacitor.isNativePlatform()) {
-      setPushRegistration({
-        error: null,
-        status: "unsupported",
-        token: null
-      });
-      return;
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const drawer = params.get("demoDrawer");
+
+    if (drawer === "chat") {
+      setMessagesOpen(true);
     }
 
-    setPushRegistration((current) => ({ ...current, status: "prompt" }));
-    let permission = await PushNotifications.checkPermissions();
-
-    if (permission.receive === "prompt") {
-      permission = await PushNotifications.requestPermissions();
+    if (drawer === "session") {
+      setSelectedSession(
+        role === "therapist"
+          ? previewTherapistSessions[0] ?? null
+          : previewPatientSessions[0] ?? null
+      );
     }
 
-    if (permission.receive !== "granted") {
-      setPushRegistration({
-        error: "Notifications were not granted for this device.",
-        status: "denied",
-        token: null
-      });
-      return;
+    if (drawer === "patient") {
+      setSelectedPatient(previewPatients[0] ?? null);
     }
+  }, [role]);
 
-    await PushNotifications.register();
-  }
-
-  async function applyNativeUpdateOnNextLaunch() {
-    if (!nativeUpdate.bundle) {
-      return;
+  useEffect(() => {
+    if (authState.user && flow.stage === "auth") {
+      setFlow((current) => ({
+        ...current,
+        onboardingStep: 0,
+        stage: "onboarding"
+      }));
     }
-
-    await scheduleNativeUpdateForNextLaunch(nativeUpdate.bundle);
-    dispatchNativeUpdate({ type: "dismiss" });
-  }
-
-  async function applyNativeUpdateNow() {
-    if (!nativeUpdate.bundle) {
-      return;
-    }
-
-    dispatchNativeUpdate({ type: "dismiss" });
-    await Promise.all([
-      CapacitorUpdater.cancelDelay(),
-      scheduleNativeUpdateForNextLaunch(nativeUpdate.bundle)
-    ]);
-    await CapacitorUpdater.reload();
-  }
+  }, [authState.user, flow.stage, setFlow]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1838,9 +2121,10 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
       const code = url.searchParams.get("code");
 
       if (code) {
-        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+        const { data, error: exchangeError } =
+          await supabase.auth.exchangeCodeForSession(code);
 
-        if (error) {
+        if (exchangeError) {
           return null;
         }
 
@@ -1855,12 +2139,12 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
         return null;
       }
 
-      const { data, error } = await supabase.auth.setSession({
+      const { data, error: sessionError } = await supabase.auth.setSession({
         access_token: accessToken,
         refresh_token: refreshToken
       });
 
-      if (error) {
+      if (sessionError) {
         return null;
       }
 
@@ -1924,9 +2208,117 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
     };
   }, [supabase]);
 
+  async function requestEmailAccess(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setStatus(null);
+
+    if (!supabase) {
+      setError("Supabase is not configured for this app yet.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    const { error: signInError } = await supabase.auth.signInWithOtp({
+      email: email.trim().toLowerCase(),
+      options: {
+        emailRedirectTo: getRedirectTo()
+      }
+    });
+    setIsSubmitting(false);
+
+    if (signInError) {
+      setError("We could not send the sign-in email. Check auth settings.");
+      return;
+    }
+
+    setStatus("Check your inbox for the Valence sign-in link or OTP.");
+  }
+
+  async function continueWithProvider(provider: Provider) {
+    setError(null);
+    setStatus(null);
+
+    if (!supabase) {
+      setError("Supabase is not configured for this app yet.");
+      return;
+    }
+
+    const isNative = Capacitor.isNativePlatform();
+    const { data, error: providerError } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: getRedirectTo(),
+        skipBrowserRedirect: isNative,
+        queryParams:
+          provider === "google" ? { prompt: "select_account" } : undefined
+      }
+    });
+
+    if (providerError) {
+      setError("We could not start that sign-in flow. Check auth settings.");
+      return;
+    }
+
+    if (isNative && data.url) {
+      await AppLauncher.openUrl({ url: data.url });
+    }
+  }
+
+  async function enablePushNotifications() {
+    if (!Capacitor.isNativePlatform()) {
+      setPushRegistration({
+        error: null,
+        status: "unsupported",
+        token: null
+      });
+      return;
+    }
+
+    setPushRegistration((current) => ({ ...current, status: "prompt" }));
+    let permission = await PushNotifications.checkPermissions();
+
+    if (permission.receive === "prompt") {
+      permission = await PushNotifications.requestPermissions();
+    }
+
+    if (permission.receive !== "granted") {
+      setPushRegistration({
+        error: "Notifications were not granted for this device.",
+        status: "denied",
+        token: null
+      });
+      return;
+    }
+
+    await PushNotifications.register();
+  }
+
   async function signOut() {
     await supabase?.auth.signOut();
     dispatchAuth({ type: "user-changed", user: null });
+  }
+
+  async function applyNativeUpdateOnNextLaunch() {
+    if (!nativeUpdate.bundle) {
+      return;
+    }
+
+    await scheduleNativeUpdateForNextLaunch(nativeUpdate.bundle);
+    dispatchNativeUpdate({ type: "dismiss" });
+  }
+
+  async function applyNativeUpdateNow() {
+    if (!nativeUpdate.bundle) {
+      return;
+    }
+
+    dispatchNativeUpdate({ type: "dismiss" });
+    await Promise.all([
+      CapacitorUpdater.cancelDelay(),
+      scheduleNativeUpdateForNextLaunch(nativeUpdate.bundle)
+    ]);
+    await CapacitorUpdater.reload();
   }
 
   function navigateWithinApp(nextPage: PageKey) {
@@ -1941,7 +2333,39 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
     }
 
     window.dispatchEvent(new Event("valence:navigation"));
-    window.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function resetDemoFlow() {
+    window.localStorage.removeItem(flowStorageKey);
+    setFlow({
+      carouselIndex: 0,
+      onboardingStep: 0,
+      role: null,
+      stage: "role"
+    });
+    navigateWithinApp("home");
+  }
+
+  function sendChatMessage(body: string) {
+    const userMessage: ChatMessage = {
+      body,
+      id: `user-${Date.now()}`,
+      mine: true
+    };
+
+    setChatMessages((current) => [...current, userMessage]);
+
+    window.setTimeout(() => {
+      setChatMessages((current) => [
+        ...current,
+        {
+          body: "This is not connected to backend, but this is how messages look.",
+          id: `reply-${Date.now()}`,
+          mine: false
+        }
+      ]);
+    }, 450);
   }
 
   const updateDrawer = (
@@ -1961,10 +2385,123 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
     );
   }
 
-  if (!authState.user) {
+  if (!flow.role || flow.stage === "role") {
     return (
       <>
-        <LoginScreen versions={versions} />
+        <RoleChoiceScreen
+          onChoose={(nextRole) =>
+            setFlow({
+              carouselIndex: 0,
+              onboardingStep: 0,
+              role: nextRole,
+              stage: "carousel"
+            })
+          }
+          versions={versions}
+        />
+        {updateDrawer}
+      </>
+    );
+  }
+
+  if (flow.stage === "carousel") {
+    return (
+      <>
+        <CarouselScreen
+          flow={flow}
+          onBack={() =>
+            setFlow((current) => ({
+              ...current,
+              carouselIndex: Math.max(0, current.carouselIndex - 1),
+              stage: current.carouselIndex === 0 ? "role" : "carousel"
+            }))
+          }
+          onNext={() =>
+            setFlow((current) => {
+              const slideCount = roleContent[role].carousel.length;
+
+              if (current.carouselIndex >= slideCount - 1) {
+                return { ...current, carouselIndex: 0, stage: "auth" };
+              }
+
+              return {
+                ...current,
+                carouselIndex: current.carouselIndex + 1
+              };
+            })
+          }
+        />
+        {updateDrawer}
+      </>
+    );
+  }
+
+  if (flow.stage === "auth") {
+    return (
+      <>
+        <AuthScreen
+          email={email}
+          error={error}
+          isSubmitting={isSubmitting}
+          onBack={() =>
+            setFlow((current) => ({
+              ...current,
+              carouselIndex: roleContent[role].carousel.length - 1,
+              stage: "carousel"
+            }))
+          }
+          onContinueDemo={() =>
+            setFlow((current) => ({
+              ...current,
+              onboardingStep: 0,
+              stage: "onboarding"
+            }))
+          }
+          onEmailChange={setEmail}
+          onProvider={(provider) => void continueWithProvider(provider)}
+          onSubmit={(event) => void requestEmailAccess(event)}
+          role={role}
+          status={status}
+        />
+        {updateDrawer}
+      </>
+    );
+  }
+
+  if (flow.stage === "onboarding") {
+    return (
+      <>
+        <OnboardingScreen
+          flow={flow}
+          onBack={() =>
+            setFlow((current) => ({
+              ...current,
+              onboardingStep: Math.max(0, current.onboardingStep - 1),
+              stage: current.onboardingStep === 0 ? "auth" : "onboarding"
+            }))
+          }
+          onNext={() =>
+            setFlow((current) => {
+              const stepCount = roleContent[role].onboarding.length;
+
+              if (current.onboardingStep >= stepCount - 1) {
+                return { ...current, onboardingStep: 0, stage: "app" };
+              }
+
+              return {
+                ...current,
+                onboardingStep: current.onboardingStep + 1
+              };
+            })
+          }
+          onSkipToApp={() =>
+            setFlow((current) => ({
+              ...current,
+              onboardingStep: 0,
+              stage: "app"
+            }))
+          }
+        />
         {updateDrawer}
       </>
     );
@@ -1974,22 +2511,48 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
     <>
       <WorkspaceShell
         activePage={activePage}
-        eventCount={clinicianEvents.eventCount}
-        lastEvent={clinicianEvents.lastEvent}
         onNavigate={navigateWithinApp}
-        onSignOut={() => void signOut()}
-        user={authState.user}
-        versions={versions}
+        onOpenMessages={() => setMessagesOpen(true)}
+        onReset={resetDemoFlow}
+        role={role}
       >
         <ActivePage
           onEnablePushNotifications={() => void enablePushNotifications()}
+          onReset={resetDemoFlow}
+          onSelectPatient={(patient) => setSelectedPatient(patient)}
+          onSelectSession={(session) => setSelectedSession(session)}
           onSignOut={() => void signOut()}
           page={activePage}
           pushRegistration={pushRegistration}
-          user={authState.user}
+          role={role}
           versions={versions}
         />
       </WorkspaceShell>
+      <ChatDrawer
+        messages={chatMessages}
+        onOpenChange={setMessagesOpen}
+        onSend={sendChatMessage}
+        open={messagesOpen}
+        role={role}
+      />
+      <SessionDetailDrawer
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedSession(null);
+          }
+        }}
+        open={Boolean(selectedSession)}
+        session={selectedSession}
+      />
+      <PatientDetailDrawer
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedPatient(null);
+          }
+        }}
+        open={Boolean(selectedPatient)}
+        patient={selectedPatient}
+      />
       {updateDrawer}
     </>
   );
