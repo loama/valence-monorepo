@@ -1,6 +1,6 @@
 {
   "name": "@valence/app",
-  "version": "104.0.0",
+  "version": "1.1.105",
   "private": true,
   "type": "module",
   "packageManager": "bun@1.3.13",

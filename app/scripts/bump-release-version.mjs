@@ -19,7 +19,7 @@ writeFileSync(
 );
 writeFileSync(
   packageJsonPath,
-  `${JSON.stringify({ ...packageJson, version: `${nextVersion}.0.0` }, null, 2)}\n`
+  `${JSON.stringify({ ...packageJson, version: `1.1.${nextVersion}` }, null, 2)}\n`
 );
 
 console.log(`Valence app release version bumped to ${nextVersion}`);

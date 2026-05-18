@@ -563,7 +563,7 @@ function getVisibleReleaseVersion(
 }
 
 function formatReleaseVersion(version: string) {
-  const integerVersion = version.match(/^(\d+)\.0\.0$/);
+  const integerVersion = version.match(/^(?:1\.1\.|)(\d+)$/);
 
   return integerVersion?.[1] ?? version;
 }

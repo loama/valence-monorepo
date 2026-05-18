@@ -17,8 +17,9 @@ continues to use `app/.env.local`.
 
 Capgo live updates use `app/release-version.json` as the source of truth.
 The current release is displayed in the app as a plain integer, for example
-`103`. The GitHub Action uploads the same release to Capgo as semver
-`103.0.0`, because Capgo requires semver-compatible bundle names.
+`105`. The GitHub Action uploads the same release to Capgo as semver
+`1.1.105`, because Capgo requires semver-compatible bundle names and blocks
+live updates that look like native major-version upgrades.
 
 Before publishing a new mobile live update, bump the release by one:
 

@@ -68,7 +68,7 @@ jobs:
             echo "::error::Unable to read app release version."
             exit 1
           fi
-          bundle_version="${release_number}.0.0"
+          bundle_version="1.1.${release_number}"
           bunx @capgo/cli@latest bundle upload com.valencedev.platform \
             --apikey "$CAPGO_TOKEN" \
             --path out \
