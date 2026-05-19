@@ -20,6 +20,7 @@ jobs:
     env:
       CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
       CAPGO_PRIVATE_KEY: ${{ secrets.CAPGO_PRIVATE_KEY }}
+      NEXT_PUBLIC_VALENCE_API_URL: ${{ secrets.NEXT_PUBLIC_VALENCE_API_URL }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
 
