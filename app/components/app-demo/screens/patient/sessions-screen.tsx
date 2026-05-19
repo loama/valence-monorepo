@@ -21,10 +21,42 @@ export function PatientSessionsScreen({
   onSelectSession: (session: DemoSession) => void;
   sessions: DemoSession[];
 }) {
+  function badgeClass(session: DemoSession) {
+    if (session.rawStatus === "requested") {
+      return "border-[var(--valence-pink)]/40 bg-[var(--valence-pink)]/15 text-foreground";
+    }
+
+    if (session.rawStatus === "confirmed") {
+      return "border-primary/40 bg-primary/15 text-foreground";
+    }
+
+    return "border-border bg-secondary text-secondary-foreground";
+  }
+
+  function timingLabel(session: DemoSession) {
+    const startsAt = session.startsAt ? new Date(session.startsAt) : null;
+    const endsAt = session.endsAt ? new Date(session.endsAt) : null;
+    const now = new Date();
+
+    if (!startsAt || !endsAt) {
+      return "Future";
+    }
+
+    if (now > new Date(endsAt.getTime() + 2 * 60 * 1000)) {
+      return "Previous";
+    }
+
+    if (now >= new Date(startsAt.getTime() - 2 * 60 * 1000)) {
+      return "Current";
+    }
+
+    return "Future";
+  }
+
   return (
     <section>
       <SectionHeader
-        description="Tap any card to open session details in a bottom drawer."
+        description="Review previous, current, and future sessions with your provider."
         eyebrow="Sessions"
         title="Upcoming sessions"
       />
@@ -46,7 +78,10 @@ export function PatientSessionsScreen({
                     {session.date}, {session.time}
                   </CardDescription>
                 </div>
-                <Badge>{session.status}</Badge>
+                <div className="flex flex-col items-end gap-1">
+                  <Badge className={badgeClass(session)}>{session.status}</Badge>
+                  <Badge variant="outline">{timingLabel(session)}</Badge>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="flex items-center justify-between pt-0 text-sm text-muted-foreground">

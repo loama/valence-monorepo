@@ -76,7 +76,8 @@ export function OnboardingCarousel({
           </Badge>
         </div>
       </div>
-      <div className="flex flex-1 flex-col gap-5 overflow-hidden pb-28 pt-28">
+      <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4.8rem)] top-[calc(env(safe-area-inset-top)+4.9rem)] mx-auto w-full max-w-md overflow-y-auto px-5">
+        <div className="flex min-h-full flex-col gap-5 pb-6 pt-5">
         <div>
           <Badge variant="outline">{audience} onboarding</Badge>
           <h1 className="mt-4 text-3xl font-semibold leading-tight">
@@ -123,6 +124,7 @@ export function OnboardingCarousel({
               </div>
             ))}
           </div>
+        </div>
         </div>
       </div>
       <div className="fixed bottom-0 left-1/2 z-20 w-full max-w-md -translate-x-1/2 border-t border-border/20 bg-background/95 px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 backdrop-blur-md">

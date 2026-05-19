@@ -2,6 +2,7 @@ import { Activity, CalendarDays } from "lucide-react";
 
 import { SectionHeader } from "@/components/app-demo/section-header";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -10,8 +11,15 @@ import {
   CardTitle
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import type { DemoProvider } from "@/components/app-demo/types";
 
-export function PatientHomeScreen() {
+export function PatientHomeScreen({
+  onRequestProvider,
+  providers
+}: {
+  onRequestProvider: (provider: DemoProvider) => void;
+  providers: DemoProvider[];
+}) {
   return (
     <section>
       <SectionHeader
@@ -49,6 +57,48 @@ export function PatientHomeScreen() {
                 </CardContent>
               </Card>
             </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-xl">Find a psychologist</CardTitle>
+            <CardDescription>
+              Searchable providers can receive a request from you. They decide
+              whether to accept the connection.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            {providers.map((provider) => (
+              <div
+                className="rounded-xl border border-border bg-background p-3"
+                key={provider.id}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">{provider.name}</p>
+                    <p className="text-sm leading-6 text-muted-foreground">
+                      {provider.specialties.join(", ")}
+                    </p>
+                  </div>
+                  <Badge variant={provider.requestStatus ? "secondary" : "outline"}>
+                    {provider.requestStatus ?? "Available"}
+                  </Badge>
+                </div>
+                <Button
+                  className="mt-3 w-full"
+                  disabled={provider.requestStatus === "accepted" || provider.requestStatus === "pending"}
+                  onClick={() => onRequestProvider(provider)}
+                  type="button"
+                  variant="outline"
+                >
+                  {provider.requestStatus === "accepted"
+                    ? "Connected"
+                    : provider.requestStatus === "pending"
+                      ? "Request sent"
+                      : "Mark as my therapist"}
+                </Button>
+              </div>
+            ))}
           </CardContent>
         </Card>
         <Card>

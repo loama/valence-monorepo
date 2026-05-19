@@ -26,6 +26,9 @@ const config: CapacitorConfig = {
     PushNotifications: {
       presentationOptions: ["badge", "sound", "banner", "list"]
     },
+    FirebaseMessaging: {
+      presentationOptions: ["alert", "badge", "sound"]
+    },
     Keyboard: {
       resize: KeyboardResize.None,
       resizeOnFullScreen: false

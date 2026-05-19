@@ -9,7 +9,14 @@ import {
   UsersRound
 } from "lucide-react";
 
-import type { DemoPatient, DemoSession, PageItem, PageKey, UserRole } from "./types";
+import type {
+  DemoPatient,
+  DemoProvider,
+  DemoSession,
+  PageItem,
+  PageKey,
+  UserRole
+} from "./types";
 
 const appRouteBasePath = "/app";
 
@@ -187,5 +194,24 @@ export const demoPatients: DemoPatient[] = [
     name: "Diego Herrera",
     progress: 56,
     risk: "Medium"
+  }
+];
+
+export const demoProviders: DemoProvider[] = [
+  {
+    bio: "Clinical psychologist focused on practical, compassionate therapy.",
+    id: "30000000-0000-4000-8000-000000000011",
+    modalities: ["Video", "In person"],
+    name: "Dr. Maya Chen",
+    requestStatus: "accepted",
+    specialties: ["Anxiety", "Sleep", "Work stress"]
+  },
+  {
+    bio: "Therapist focused on reflective care and clear next steps.",
+    id: "30000000-0000-4000-8000-000000000012",
+    modalities: ["Video"],
+    name: "Dr. Lucia Ramos",
+    requestStatus: "pending",
+    specialties: ["Relationships", "Mood", "Transitions"]
   }
 ];

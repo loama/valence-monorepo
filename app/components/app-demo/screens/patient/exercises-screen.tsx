@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import { SectionHeader } from "@/components/app-demo/section-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +18,8 @@ const exercises = [
 ] as const;
 
 export function PatientExercisesScreen() {
+  const [openExercise, setOpenExercise] = useState<string | null>(null);
+
   return (
     <section>
       <SectionHeader
@@ -32,8 +36,23 @@ export function PatientExercisesScreen() {
             </CardHeader>
             <CardContent className="grid gap-3">
               <Progress value={progress} />
-              <Button type="button" variant="outline">
-                Open exercise
+              {openExercise === title ? (
+                <div className="rounded-xl border border-border bg-background p-4 text-sm leading-6 text-muted-foreground">
+                  Here we will have the exercise at some point. This space will
+                  guide the patient step by step, save progress, and keep the
+                  practice tied to their care plan.
+                </div>
+              ) : null}
+              <Button
+                onClick={() =>
+                  setOpenExercise((current) =>
+                    current === title ? null : title
+                  )
+                }
+                type="button"
+                variant="outline"
+              >
+                {openExercise === title ? "Close exercise" : "Open exercise"}
               </Button>
             </CardContent>
           </Card>

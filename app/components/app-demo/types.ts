@@ -31,10 +31,15 @@ export type PageItem = {
 
 export type DemoSession = {
   date: string;
+  endsAt?: string;
   id: string;
   mode: string;
   notes: string;
+  patientId?: string;
   person: string;
+  providerId?: string;
+  rawStatus?: "cancelled" | "completed" | "confirmed" | "requested";
+  startsAt?: string;
   status: string;
   time: string;
 };
@@ -46,4 +51,22 @@ export type DemoPatient = {
   name: string;
   progress: number;
   risk: string;
+};
+
+export type DemoProvider = {
+  bio: string;
+  id: string;
+  modalities: string[];
+  name: string;
+  requestStatus?: "accepted" | "declined" | "pending";
+  specialties: string[];
+};
+
+export type DemoConnectionRequest = {
+  id: string;
+  message: string | null;
+  patientId: string;
+  patientName: string;
+  providerId: string;
+  status: "accepted" | "cancelled" | "declined" | "pending";
 };

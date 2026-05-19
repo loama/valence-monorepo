@@ -16,8 +16,10 @@ import {
 } from "react";
 import { App } from "@capacitor/app";
 import { Capacitor, type PluginListenerHandle } from "@capacitor/core";
+import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { Keyboard } from "@capacitor/keyboard";
 import { PushNotifications } from "@capacitor/push-notifications";
+import { FirebaseMessaging } from "@capacitor-firebase/messaging";
 import { InAppBrowser } from "@capgo/inappbrowser";
 import {
   CapacitorUpdater,
@@ -28,10 +30,12 @@ import type { Provider, SupabaseClient, User } from "@supabase/supabase-js";
 import {
   Apple,
   ArrowLeft,
+  Check,
   CloudDownload,
   HeartPulse,
   Mail,
   MessageCircle,
+  RefreshCw,
   Send,
   Sparkles,
   Stethoscope,
@@ -43,6 +47,7 @@ import releaseVersion from "@/release-version.json";
 
 import {
   demoPatients as previewPatients,
+  demoProviders as previewProviders,
   pageItems,
   patientNavItems,
   patientSessions as previewPatientSessions,
@@ -61,7 +66,13 @@ import { TherapistPatientsScreen } from "@/components/app-demo/screens/therapist
 import { TherapistProfileScreen } from "@/components/app-demo/screens/therapist/profile-screen";
 import { TherapistSessionsScreen } from "@/components/app-demo/screens/therapist/sessions-screen";
 import { TherapistWelcomeCarousel } from "@/components/app-demo/screens/therapist/welcome-carousel";
-import type { DemoPatient, DemoSession, PageKey } from "@/components/app-demo/types";
+import type {
+  DemoConnectionRequest,
+  DemoPatient,
+  DemoProvider,
+  DemoSession,
+  PageKey
+} from "@/components/app-demo/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -92,6 +103,7 @@ const nativeRedirectUrl =
   process.env.NEXT_PUBLIC_APP_NATIVE_REDIRECT_URL ??
   "valence://auth/callback";
 const flowStorageKey = "valence-demo-flow-v3";
+const installationStorageKey = "valence-installation-id";
 
 type UserRole = "patient" | "therapist";
 type FlowStage = "role" | "carousel" | "auth" | "onboarding" | "app";
@@ -129,6 +141,19 @@ type PushRegistrationState = {
   token: string | null;
 };
 
+type AppUserProfile = {
+  displayName: string;
+  email: string;
+  id: string;
+  patientId: string | null;
+  providerId: string | null;
+};
+
+type DeviceSessionState = {
+  deviceId: string | null;
+  sessionId: string | null;
+};
+
 type NativeUpdateState = {
   bundle: BundleInfo | null;
   error: string | null;
@@ -163,26 +188,52 @@ type ChatMessage = {
 
 type LiveDemoData = {
   activeConversationId: string | null;
+  connectionRequests: DemoConnectionRequest[];
   patients: DemoPatient[];
   patientSessions: DemoSession[];
+  providers: DemoProvider[];
   therapistSessions: DemoSession[];
 };
 
 const initialLiveDemoData: LiveDemoData = {
   activeConversationId: null,
+  connectionRequests: [],
   patients: previewPatients,
   patientSessions: previewPatientSessions,
+  providers: previewProviders,
   therapistSessions: previewTherapistSessions
 };
-
-const demoPatientUserId = "10000000-0000-4000-8000-000000000001";
-const demoProviderUserId = "10000000-0000-4000-8000-000000000002";
 
 const fallbackInstalledVersion = packageJson.version;
 const appReleaseNumber = Number(releaseVersion.version);
 const appReleaseVersion = Number.isInteger(appReleaseNumber)
   ? String(appReleaseNumber)
   : fallbackInstalledVersion;
+
+function hapticLight() {
+  if (!Capacitor.isNativePlatform()) {
+    return;
+  }
+
+  void Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+}
+
+function getInstallationId() {
+  if (typeof window === "undefined") {
+    return "server";
+  }
+
+  const existing = window.localStorage.getItem(installationStorageKey);
+
+  if (existing) {
+    return existing;
+  }
+
+  const created = window.crypto?.randomUUID?.() ?? `install-${Date.now()}`;
+  window.localStorage.setItem(installationStorageKey, created);
+
+  return created;
+}
 
 const roleContent: Record<
   UserRole,
@@ -711,11 +762,11 @@ function bindPushNotificationLifecycle(
   const handles: PluginListenerHandle[] = [];
 
   bindListener(
-    PushNotifications.addListener("registration", (token) => {
+    FirebaseMessaging.addListener("tokenReceived", (token) => {
       setPushRegistration({
         error: null,
         status: "registered",
-        token: token.value
+        token: token.token
       });
     }),
     handles,
@@ -723,12 +774,13 @@ function bindPushNotificationLifecycle(
   );
 
   bindListener(
-    PushNotifications.addListener("registrationError", (error) => {
-      setPushRegistration({
-        error: error.error,
-        status: "error",
-        token: null
-      });
+    FirebaseMessaging.addListener("notificationActionPerformed", ({ notification }) => {
+      const data = notification.data as { url?: unknown } | undefined;
+      const url = data?.url;
+
+      if (typeof url === "string" && url.startsWith("/")) {
+        window.location.assign(url);
+      }
     }),
     handles,
     () => isActive
@@ -983,6 +1035,59 @@ function formatModality(modality: string | null | undefined) {
   return "Video";
 }
 
+function formatStatus(status: string | null | undefined) {
+  if (!status) {
+    return "Confirmed";
+  }
+
+  return status
+    .replaceAll("_", " ")
+    .replace(/^./, (letter) => letter.toUpperCase());
+}
+
+function getSessionTiming(session: DemoSession) {
+  const startsAt = session.startsAt ? new Date(session.startsAt) : null;
+  const endsAt = session.endsAt ? new Date(session.endsAt) : null;
+  const now = new Date();
+
+  if (!startsAt || !endsAt) {
+    return {
+      canJoin: true,
+      label: "Scheduled" as const
+    };
+  }
+
+  const joinOpens = new Date(startsAt.getTime() - 2 * 60 * 1000);
+  const joinCloses = new Date(endsAt.getTime() + 2 * 60 * 1000);
+
+  return {
+    canJoin:
+      session.rawStatus === "confirmed" && now >= joinOpens && now <= joinCloses,
+    label:
+      now > joinCloses
+        ? ("Previous" as const)
+        : now >= joinOpens
+          ? ("Current" as const)
+          : ("Future" as const)
+  };
+}
+
+function getSessionStatusClass(session: DemoSession) {
+  if (session.rawStatus === "requested") {
+    return "border-[var(--valence-pink)]/40 bg-[var(--valence-pink)]/18 text-foreground";
+  }
+
+  if (session.rawStatus === "confirmed") {
+    return "border-primary/40 bg-primary/18 text-foreground";
+  }
+
+  if (session.rawStatus === "completed") {
+    return "border-border bg-secondary text-secondary-foreground";
+  }
+
+  return "border-border bg-card text-muted-foreground";
+}
+
 function bindLiveDemoDataChannel({
   client,
   loadDemoData,
@@ -1002,6 +1107,16 @@ function bindLiveDemoDataChannel({
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "therapist_connection_requests" },
+      loadDemoData
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "patient_provider_connections" },
+      loadDemoData
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "providers" },
       loadDemoData
     )
     .on(
@@ -1044,8 +1159,118 @@ function bindMessagesChannel({
   };
 }
 
+async function ensureAppUserProfile({
+  role,
+  supabase,
+  user
+}: {
+  role: UserRole;
+  supabase: SupabaseClient | null;
+  user: User | null;
+}): Promise<AppUserProfile | null> {
+  if (!supabase || !user?.email) {
+    return null;
+  }
+
+  const email = user.email.toLowerCase();
+  const displayName =
+    user.user_metadata?.full_name ??
+    user.user_metadata?.name ??
+    email.split("@")[0] ??
+    "Valence member";
+  const dbRole = role === "therapist" ? "provider" : "patient";
+  const existingUser = await supabase
+    .from("users")
+    .select("id, email, display_name")
+    .eq("email", email)
+    .maybeSingle();
+
+  let userId = existingUser.data?.id as string | undefined;
+
+  if (userId) {
+    await supabase
+      .from("users")
+      .update({
+        auth_user_id: user.id,
+        display_name: displayName,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", userId);
+  } else {
+    const createdUser = await supabase
+      .from("users")
+      .insert({
+        auth_user_id: user.id,
+        display_name: displayName,
+        email,
+        role: dbRole
+      })
+      .select("id")
+      .single();
+
+    userId = createdUser.data?.id as string | undefined;
+  }
+
+  if (!userId) {
+    return null;
+  }
+
+  const patientResult = await supabase
+    .from("patients")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  let patientId = patientResult.data?.id as string | null | undefined;
+
+  if (!patientId && role === "patient") {
+    const createdPatient = await supabase
+      .from("patients")
+      .insert({
+        care_goals: [],
+        preferred_name: displayName.split(" ")[0] ?? displayName,
+        risk_level: "low",
+        user_id: userId
+      })
+      .select("id")
+      .single();
+    patientId = createdPatient.data?.id as string | null | undefined;
+  }
+
+  const providerResult = await supabase
+    .from("providers")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  let providerId = providerResult.data?.id as string | null | undefined;
+
+  if (!providerId && role === "therapist") {
+    const createdProvider = await supabase
+      .from("providers")
+      .insert({
+        bio: "Psychologist using Valence for sessions and patient care.",
+        display_name: displayName,
+        modalities: ["video"],
+        searchable: true,
+        specialties: ["Therapy"],
+        user_id: userId
+      })
+      .select("id")
+      .single();
+    providerId = createdProvider.data?.id as string | null | undefined;
+  }
+
+  return {
+    displayName,
+    email,
+    id: userId,
+    patientId: patientId ?? null,
+    providerId: providerId ?? null
+  };
+}
+
 function useLiveDemoData(
   supabase: SupabaseClient | null,
+  appUser: AppUserProfile | null,
   role: UserRole,
   onAppVersionReleased: () => void
 ) {
@@ -1067,30 +1292,35 @@ function useLiveDemoData(
     let isMounted = true;
 
     async function loadDemoData() {
+      if (!appUser) {
+        setData(initialLiveDemoData);
+        return;
+      }
+
       const [
         appointmentsResult,
         patientsResult,
         providersResult,
-        conversationsResult
+        conversationsResult,
+        requestsResult
       ] = await Promise.all([
         client
           .from("appointments")
-          .select("id, patient_id, provider_id, starts_at, status, modality, notes, is_demo")
-          .eq("is_demo", true)
+          .select("id, patient_id, provider_id, starts_at, ends_at, status, modality, notes")
           .order("starts_at", { ascending: true }),
         client
           .from("patients")
-          .select("id, preferred_name, care_goals, risk_level, is_demo")
-          .eq("is_demo", true),
+          .select("id, preferred_name, care_goals, risk_level"),
         client
           .from("providers")
-          .select("id, display_name, is_demo")
-          .eq("is_demo", true),
+          .select("id, display_name, specialties, modalities, bio"),
         client
           .from("conversations")
-          .select("id, title, is_demo")
-          .eq("is_demo", true)
-          .limit(1)
+          .select("id, title")
+          .limit(1),
+        client
+          .from("therapist_connection_requests")
+          .select("id, patient_id, provider_id, status, message")
       ]);
 
       if (!isMounted || appointmentsResult.error) {
@@ -1108,22 +1338,33 @@ function useLiveDemoData(
         providerNameById.set(provider.id, provider.display_name);
       }
 
+      const requestStatusByProvider = new Map<string, DemoProvider["requestStatus"]>();
+
+      for (const request of requestsResult.data ?? []) {
+        if (typeof request.provider_id === "string") {
+          requestStatusByProvider.set(
+            request.provider_id,
+            request.status as DemoProvider["requestStatus"]
+          );
+        }
+      }
+
       const liveSessions = (appointmentsResult.data ?? []).map(
         (appointment): DemoSession => ({
           date: formatSessionDate(appointment.starts_at),
+          endsAt: appointment.ends_at ?? undefined,
           id: appointment.id,
           mode: formatModality(appointment.modality),
           notes: appointment.notes ?? "No prep notes yet.",
+          patientId: appointment.patient_id,
           person:
             role === "therapist"
               ? patientNameById.get(appointment.patient_id) ?? "Patient"
               : providerNameById.get(appointment.provider_id) ?? "Provider",
-          status:
-            typeof appointment.status === "string"
-              ? appointment.status.replace(/^./, (letter) =>
-                  letter.toUpperCase()
-                )
-              : "Confirmed",
+          providerId: appointment.provider_id,
+          rawStatus: appointment.status as DemoSession["rawStatus"],
+          startsAt: appointment.starts_at ?? undefined,
+          status: formatStatus(appointment.status),
           time: formatSessionTime(appointment.starts_at)
         })
       );
@@ -1141,11 +1382,41 @@ function useLiveDemoData(
         })
       );
 
+      const liveProviders = (providersResult.data ?? []).map(
+        (provider): DemoProvider => ({
+          bio: provider.bio ?? "Available for care through Valence.",
+          id: provider.id,
+          modalities: Array.isArray(provider.modalities)
+            ? provider.modalities.map(formatModality)
+            : ["Video"],
+          name: provider.display_name,
+          requestStatus: requestStatusByProvider.get(provider.id),
+          specialties: Array.isArray(provider.specialties)
+            ? provider.specialties
+            : ["Therapy"]
+        })
+      );
+
+      const liveConnectionRequests = (requestsResult.data ?? [])
+        .filter((request) => request.status === "pending")
+        .map(
+          (request): DemoConnectionRequest => ({
+            id: request.id,
+            message: request.message ?? null,
+            patientId: request.patient_id,
+            patientName: patientNameById.get(request.patient_id) ?? "Patient",
+            providerId: request.provider_id,
+            status: request.status as DemoConnectionRequest["status"]
+          })
+        );
+
       setData({
         activeConversationId: conversationsResult.data?.[0]?.id ?? null,
+        connectionRequests: liveConnectionRequests,
         patients: livePatients.length > 0 ? livePatients : previewPatients,
         patientSessions:
           liveSessions.length > 0 ? liveSessions : previewPatientSessions,
+        providers: liveProviders.length > 0 ? liveProviders : previewProviders,
         therapistSessions:
           liveSessions.length > 0 ? liveSessions : previewTherapistSessions
       });
@@ -1163,7 +1434,7 @@ function useLiveDemoData(
       isMounted = false;
       cleanupChannel();
     };
-  }, [onAppVersionReleased, role, supabase]);
+  }, [appUser, onAppVersionReleased, role, supabase]);
 
   useEffect(() => {
     if (!supabase || !data.activeConversationId) {
@@ -1188,9 +1459,7 @@ function useLiveDemoData(
         rows.map((message) => ({
           body: message.body,
           id: message.id,
-          mine:
-            message.sender_user_id ===
-            (role === "therapist" ? demoProviderUserId : demoPatientUserId)
+          mine: message.sender_user_id === appUser?.id
         }))
       );
     }
@@ -1207,7 +1476,7 @@ function useLiveDemoData(
       isMounted = false;
       cleanupChannel();
     };
-  }, [data.activeConversationId, role, supabase]);
+  }, [appUser?.id, data.activeConversationId, supabase]);
 
   return { data, messages, setMessages };
 }
@@ -1468,7 +1737,7 @@ function AuthScreen({
           </h1>
           <p className="mt-3 text-base leading-7 text-muted-foreground">
             Continue with Google, Apple, or a secure email code. You can also
-            enter the workspace to explore your setup.
+            enter the workspace when your account is ready.
           </p>
         </div>
         <form className="flex flex-col gap-3" onSubmit={onSubmit}>
@@ -1507,7 +1776,7 @@ function AuthScreen({
             Continue with Apple
           </Button>
           <Button onClick={onContinueDemo} type="button" variant="secondary">
-            Continue without login
+            Continue to workspace
           </Button>
         </div>
         {status ? (
@@ -1633,92 +1902,96 @@ function MessagesPanel({
     });
   }
 
-  if (!open) {
-    return null;
-  }
-
   return (
-    <div
-      className="fixed inset-0 z-50 overflow-hidden bg-background text-foreground"
-      style={roleAccentStyle(role)}
+    <Drawer
+      dismissible={false}
+      open={open}
+      shouldScaleBackground={false}
     >
-      <div className="mx-auto h-dvh max-w-md">
-        <header className="fixed left-1/2 top-0 z-10 w-full max-w-md -translate-x-1/2 border-b border-border/30 bg-background/95 px-5 pb-3 pt-[calc(env(safe-area-inset-top)+0.8rem)] backdrop-blur-xl">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="font-semibold leading-tight">Messages</p>
-              <p className="text-xs text-muted-foreground">
-                {roleContent[role].audience} care chat
-              </p>
-            </div>
-            <Button
-              aria-label="Close messages"
-              onClick={onClose}
-              size="icon"
-              type="button"
-              variant="outline"
-            >
-              <X />
-            </Button>
-          </div>
-        </header>
-        <div
-          className="absolute left-1/2 w-full max-w-md -translate-x-1/2 overflow-y-auto px-5 transition-[bottom] duration-200 ease-out"
-          ref={scrollRef}
-          style={{
-            bottom: `calc(6rem + env(safe-area-inset-bottom) + ${keyboardLift}px)`,
-            top: "calc(env(safe-area-inset-top) + 4.3rem)"
-          }}
-        >
-          <div className="flex min-h-full flex-col gap-3 pt-[80vh]">
-            {messages.map((message) => (
-              <div
-                className={cn(
-                  "max-w-[82%] rounded-2xl border px-3 py-2 text-sm leading-6",
-                  message.mine
-                    ? "ml-auto border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-card text-card-foreground"
-                )}
-                key={message.id}
-              >
-                {message.body}
+      <DrawerContent
+        className="mx-auto h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] max-w-md rounded-t-[1.75rem] bg-background p-0"
+        style={roleAccentStyle(role)}
+      >
+        <div className="flex min-h-0 flex-1 flex-col">
+          <header className="shrink-0 border-b border-border/30 bg-background/95 px-5 pb-3 pt-4 backdrop-blur-xl">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="font-semibold leading-tight">Messages</p>
+                <p className="text-xs text-muted-foreground">
+                  {roleContent[role].audience} care chat
+                </p>
               </div>
-            ))}
+              <Button
+                aria-label="Close messages"
+                onClick={() => {
+                  hapticLight();
+                  onClose();
+                }}
+                size="icon"
+                type="button"
+                variant="outline"
+              >
+                <X />
+              </Button>
+            </div>
+          </header>
+          <div
+            className="min-h-0 flex-1 overflow-y-auto px-5 transition-[padding-bottom] duration-200 ease-out"
+            ref={scrollRef}
+            style={{
+              paddingBottom: `calc(5.5rem + ${keyboardLift}px)`
+            }}
+          >
+            <div className="flex min-h-full flex-col justify-end gap-3 py-4">
+              {messages.map((message) => (
+                <div
+                  className={cn(
+                    "max-w-[82%] rounded-2xl border px-3 py-2 text-sm leading-6",
+                    message.mine
+                      ? "ml-auto border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-card text-card-foreground"
+                  )}
+                  key={message.id}
+                >
+                  {message.body}
+                </div>
+              ))}
+            </div>
           </div>
+          <footer
+            className="fixed left-[env(safe-area-inset-left)] right-[env(safe-area-inset-right)] z-[60] px-4 transition-transform duration-200 ease-out"
+            style={{
+              bottom: "calc(env(safe-area-inset-bottom) + 0.75rem)",
+              transform: `translateY(-${keyboardLift}px)`
+            }}
+          >
+            <div className="mx-auto flex max-w-md gap-2 rounded-[1.75rem] border border-border bg-card p-2">
+              <Input
+                className="h-11 flex-1 rounded-[1.25rem]"
+                onChange={(event) => setDraft(event.currentTarget.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    sendMessage();
+                  }
+                }}
+                placeholder="Write a message"
+                ref={inputRef}
+                value={draft}
+              />
+              <Button
+                onClick={sendMessage}
+                onPointerDown={(event) => event.preventDefault()}
+                size="icon"
+                type="button"
+              >
+                <Send />
+              </Button>
+            </div>
+          </footer>
         </div>
-        <footer
-          className="fixed left-[env(safe-area-inset-left)] right-[env(safe-area-inset-right)] z-50 px-4 transition-transform duration-200 ease-out"
-          style={{
-            bottom: "calc(env(safe-area-inset-bottom) + 0.75rem)",
-            transform: `translateY(-${keyboardLift}px)`
-          }}
-        >
-          <div className="mx-auto flex max-w-md gap-2 rounded-[1.75rem] border border-border bg-card p-2">
-            <Input
-              className="h-11 flex-1 rounded-[1.25rem]"
-              onChange={(event) => setDraft(event.currentTarget.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  sendMessage();
-                }
-              }}
-              placeholder="Write a message"
-              ref={inputRef}
-              value={draft}
-            />
-            <Button
-              onClick={sendMessage}
-              onPointerDown={(event) => event.preventDefault()}
-              size="icon"
-              type="button"
-            >
-              <Send />
-            </Button>
-          </div>
-        </footer>
-      </div>
-    </div>
+      </DrawerContent>
+    </Drawer>
   );
 }
 
@@ -1733,6 +2006,8 @@ function SessionDetailDrawer({
   open: boolean;
   session: DemoSession | null;
 }) {
+  const timing = session ? getSessionTiming(session) : null;
+
   return (
     <Drawer onOpenChange={onOpenChange} open={open} shouldScaleBackground={false}>
       <DrawerContent className="mx-auto max-w-md">
@@ -1749,7 +2024,10 @@ function SessionDetailDrawer({
               <CardDescription>{session?.notes}</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2">
-              <Badge>{session?.status}</Badge>
+              <Badge className={session ? getSessionStatusClass(session) : ""}>
+                {session?.status}
+              </Badge>
+              <Badge variant="outline">{timing?.label}</Badge>
               <Badge variant="secondary">{session?.mode}</Badge>
             </CardContent>
           </Card>
@@ -1762,15 +2040,16 @@ function SessionDetailDrawer({
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-2">
               <Button
-                disabled={!session}
+                disabled={!session || !timing?.canJoin}
                 onClick={() => {
                   if (session) {
+                    hapticLight();
                     onJoin(session);
                   }
                 }}
                 type="button"
               >
-                Join
+                {timing?.canJoin ? "Join" : "Join opens near start"}
               </Button>
               <Button type="button" variant="outline">
                 Reschedule
@@ -1836,6 +2115,68 @@ function PatientDetailDrawer({
           <DrawerClose asChild>
             <Button type="button">Close details</Button>
           </DrawerClose>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
+  );
+}
+
+function RoleSwitcherDrawer({
+  currentRole,
+  onOpenChange,
+  onSelectRole,
+  open
+}: {
+  currentRole: UserRole;
+  onOpenChange: (open: boolean) => void;
+  onSelectRole: (role: UserRole) => void;
+  open: boolean;
+}) {
+  return (
+    <Drawer
+      dismissible={false}
+      onOpenChange={onOpenChange}
+      open={open}
+      shouldScaleBackground={false}
+    >
+      <DrawerContent className="mx-auto max-w-md">
+        <DrawerHeader className="text-left">
+          <DrawerTitle>Switch workspace</DrawerTitle>
+          <DrawerDescription>
+            Use both sides of Valence when you are testing care flows.
+          </DrawerDescription>
+        </DrawerHeader>
+        <div className="grid gap-3 px-4 pb-2">
+          {(["patient", "therapist"] as const).map((roleOption) => (
+            <Card key={roleOption}>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center justify-between text-lg">
+                  {roleContent[roleOption].audience}
+                  {currentRole === roleOption ? <Check className="text-primary" /> : null}
+                </CardTitle>
+                <CardDescription>
+                  {roleOption === "patient"
+                    ? "Sessions, exercises, messages, and your care profile."
+                    : "Calendar, patient requests, bookings, and clinical profile."}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  className="w-full"
+                  onClick={() => onSelectRole(roleOption)}
+                  type="button"
+                  variant={currentRole === roleOption ? "secondary" : "outline"}
+                >
+                  {currentRole === roleOption ? "Current workspace" : "Switch"}
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <DrawerFooter>
+          <Button onClick={() => onOpenChange(false)} type="button" variant="outline">
+            Close
+          </Button>
         </DrawerFooter>
       </DrawerContent>
     </Drawer>
@@ -1937,7 +2278,7 @@ function DailyCallScreen({
         ) : (
           <div className="grid size-full place-items-center rounded-[1.5rem] border border-border bg-card p-6 text-center">
             <div className="max-w-xs">
-              <Badge variant="secondary">Daily.co preview</Badge>
+              <Badge variant="secondary">Daily video room</Badge>
               <h2 className="mt-4 text-2xl font-semibold">
                 Video room ready
               </h2>
@@ -1958,6 +2299,7 @@ function WorkspaceShell({
   children,
   onNavigate,
   onOpenMessages,
+  onOpenRoleSwitcher,
   onReset,
   role
 }: {
@@ -1965,6 +2307,7 @@ function WorkspaceShell({
   children: ReactNode;
   onNavigate: (page: PageKey) => void;
   onOpenMessages: () => void;
+  onOpenRoleSwitcher: () => void;
   onReset: () => void;
   role: UserRole;
 }) {
@@ -1983,7 +2326,15 @@ function WorkspaceShell({
         <div className="mx-auto flex max-w-md items-center justify-between">
           <BrandLogo />
           <div className="flex items-center gap-2">
-            <Badge variant="secondary">{roleContent[role].audience}</Badge>
+            <Button
+              className="h-9 rounded-full px-3 text-xs"
+              onClick={onOpenRoleSwitcher}
+              type="button"
+              variant="secondary"
+            >
+              <RefreshCw className="size-3.5" />
+              {roleContent[role].audience}
+            </Button>
             <Button
               aria-label="Open messages"
               onClick={onOpenMessages}
@@ -2044,9 +2395,12 @@ function WorkspaceShell({
 
 function ActivePage({
   liveData,
+  onAcceptConnectionRequest,
+  onDeclineConnectionRequest,
   onEnablePushNotifications,
   onBookSession,
   onReset,
+  onRequestProvider,
   onSelectPatient,
   onSelectSession,
   onSignOut,
@@ -2056,8 +2410,11 @@ function ActivePage({
   versions
 }: {
   liveData: LiveDemoData;
+  onAcceptConnectionRequest: (request: DemoConnectionRequest) => void;
+  onDeclineConnectionRequest: (request: DemoConnectionRequest) => void;
   onEnablePushNotifications: () => void;
   onBookSession: () => void;
+  onRequestProvider: (provider: DemoProvider) => void;
   onReset: () => void;
   onSelectPatient: (patient: DemoPatient) => void;
   onSelectSession: (session: DemoSession) => void;
@@ -2094,7 +2451,12 @@ function ActivePage({
       );
     }
 
-    return <PatientHomeScreen />;
+    return (
+      <PatientHomeScreen
+        onRequestProvider={onRequestProvider}
+        providers={liveData.providers}
+      />
+    );
   }
 
   if (page === "sessions") {
@@ -2110,6 +2472,9 @@ function ActivePage({
   if (page === "patients") {
     return (
       <TherapistPatientsScreen
+        connectionRequests={liveData.connectionRequests}
+        onAcceptRequest={onAcceptConnectionRequest}
+        onDeclineRequest={onDeclineConnectionRequest}
         onSelectPatient={onSelectPatient}
         patients={liveData.patients}
       />
@@ -2145,6 +2510,12 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
   const [selectedSession, setSelectedSession] = useState<DemoSession | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<DemoPatient | null>(null);
   const [callSession, setCallSession] = useState<DemoSession | null>(null);
+  const [roleDrawerOpen, setRoleDrawerOpen] = useState(false);
+  const [appUser, setAppUser] = useState<AppUserProfile | null>(null);
+  const [deviceSession, setDeviceSession] = useState<DeviceSessionState>({
+    deviceId: null,
+    sessionId: null
+  });
   const [authState, dispatchAuth] = useReducer(authReducer, {
     isLoading: true,
     user: null
@@ -2170,7 +2541,7 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
     data: liveData,
     messages: chatMessages,
     setMessages: setChatMessages
-  } = useLiveDemoData(supabase, role, handleAppVersionReleased);
+  } = useLiveDemoData(supabase, appUser, role, handleAppVersionReleased);
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) {
@@ -2192,19 +2563,116 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
   }, []);
 
   useEffect(() => {
-    if (!supabase || pushRegistration.status !== "registered" || !pushRegistration.token) {
+    if (!supabase || !appUser || !authState.user) {
       return;
     }
 
-    void supabase.from("device_push_tokens").upsert(
-      {
-        platform: Capacitor.getPlatform() === "android" ? "android" : "ios",
-        token: pushRegistration.token,
-        user_id: null
-      },
-      { onConflict: "token" }
-    );
-  }, [pushRegistration.status, pushRegistration.token, supabase]);
+    const client = supabase;
+    const currentAppUser = appUser;
+    let isMounted = true;
+    const platform = Capacitor.getPlatform() === "android" ? "android" : "ios";
+    const now = new Date().toISOString();
+    const installationId = getInstallationId();
+
+    async function registerDeviceSession() {
+      const deviceResult = await client
+        .from("devices")
+        .upsert(
+          {
+            app_version: appReleaseVersion,
+            bundle_id: "com.valencedev.app",
+            installation_id: installationId,
+            last_seen_at: now,
+            platform,
+            push_token:
+              pushRegistration.status === "registered"
+                ? pushRegistration.token
+                : null,
+            push_token_provider: "firebase",
+            push_token_updated_at:
+              pushRegistration.status === "registered" ? now : null,
+            updated_at: now,
+            user_id: currentAppUser.id
+          },
+          { onConflict: "installation_id" }
+        )
+        .select("id")
+        .single();
+
+      const deviceId = deviceResult.data?.id as string | undefined;
+
+      if (!deviceId) {
+        return;
+      }
+
+      if (pushRegistration.status === "registered" && pushRegistration.token) {
+        await client.from("device_push_tokens").upsert(
+          {
+            device_id: deviceId,
+            platform,
+            token: pushRegistration.token,
+            token_provider: "firebase",
+            updated_at: now,
+            user_id: currentAppUser.id
+          },
+          { onConflict: "token" }
+        );
+      }
+
+      if (!deviceSession.sessionId) {
+        const sessionResult = await client
+          .from("sessions")
+          .insert({
+            device_id: deviceId,
+            last_seen_at: now,
+            metadata: {
+              release: appReleaseVersion
+            },
+            status: "active",
+            user_id: currentAppUser.id
+          })
+          .select("id")
+          .single();
+
+        if (isMounted) {
+          setDeviceSession({
+            deviceId,
+            sessionId: (sessionResult.data?.id as string | undefined) ?? null
+          });
+        }
+        return;
+      }
+
+      await client
+        .from("sessions")
+        .update({
+          device_id: deviceId,
+          last_seen_at: now,
+          status: "active"
+        })
+        .eq("id", deviceSession.sessionId);
+
+      if (isMounted) {
+        setDeviceSession((current) => ({
+          ...current,
+          deviceId
+        }));
+      }
+    }
+
+    void registerDeviceSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    appUser,
+    authState.user,
+    deviceSession.sessionId,
+    pushRegistration.status,
+    pushRegistration.token,
+    supabase
+  ]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -2244,6 +2712,24 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
       }));
     }
   }, [authState.user, flow.stage, setFlow]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    void ensureAppUserProfile({
+      role,
+      supabase,
+      user: authState.user
+    }).then((profile) => {
+      if (isMounted) {
+        setAppUser(profile);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [authState.user, role, supabase]);
 
   useEffect(() => {
     let isMounted = true;
@@ -2310,6 +2796,7 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
 
   async function requestEmailAccess(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    hapticLight();
     setError(null);
     setStatus(null);
 
@@ -2336,6 +2823,7 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
   }
 
   async function continueWithProvider(provider: Provider) {
+    hapticLight();
     setError(null);
     setStatus(null);
 
@@ -2387,6 +2875,8 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
   }
 
   async function enablePushNotifications() {
+    hapticLight();
+
     if (!Capacitor.isNativePlatform()) {
       setPushRegistration({
         error: null,
@@ -2397,10 +2887,21 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
     }
 
     setPushRegistration((current) => ({ ...current, status: "prompt" }));
-    let permission = await PushNotifications.checkPermissions();
+    const supported = await FirebaseMessaging.isSupported();
+
+    if (!supported.isSupported) {
+      setPushRegistration({
+        error: "Firebase notifications are not supported on this device.",
+        status: "unsupported",
+        token: null
+      });
+      return;
+    }
+
+    let permission = await FirebaseMessaging.checkPermissions();
 
     if (permission.receive === "prompt") {
-      permission = await PushNotifications.requestPermissions();
+      permission = await FirebaseMessaging.requestPermissions();
     }
 
     if (permission.receive !== "granted") {
@@ -2412,12 +2913,38 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
       return;
     }
 
-    await PushNotifications.register();
+    const token = await FirebaseMessaging.getToken();
+
+    setPushRegistration({
+      error: null,
+      status: "registered",
+      token: token.token
+    });
   }
 
   async function signOut() {
+    hapticLight();
+    const endedAt = new Date().toISOString();
+
+    if (supabase && deviceSession.sessionId) {
+      await supabase
+        .from("sessions")
+        .update({
+          ended_at: endedAt,
+          last_seen_at: endedAt,
+          status: "ended"
+        })
+        .eq("id", deviceSession.sessionId);
+    }
+
+    if (Capacitor.isNativePlatform()) {
+      await FirebaseMessaging.deleteToken().catch(() => {});
+    }
+
     await supabase?.auth.signOut();
     dispatchAuth({ type: "user-changed", user: null });
+    setAppUser(null);
+    setDeviceSession({ deviceId: null, sessionId: null });
     setStatus("Signed out.");
     setError(null);
     setMessagesOpen(false);
@@ -2433,6 +2960,7 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
   }
 
   async function applyNativeUpdateOnNextLaunch() {
+    hapticLight();
     if (!nativeUpdate.bundle) {
       return;
     }
@@ -2442,6 +2970,7 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
   }
 
   async function applyNativeUpdateNow() {
+    hapticLight();
     if (!nativeUpdate.bundle) {
       return;
     }
@@ -2455,6 +2984,7 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
   }
 
   function navigateWithinApp(nextPage: PageKey) {
+    hapticLight();
     if (typeof window === "undefined") {
       return;
     }
@@ -2470,6 +3000,7 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
   }
 
   function resetDemoFlow() {
+    hapticLight();
     window.localStorage.removeItem(flowStorageKey);
     setFlow({
       carouselIndex: 0,
@@ -2481,6 +3012,12 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
   }
 
   async function sendChatMessage(body: string) {
+    hapticLight();
+    if (!appUser) {
+      setStatus("Sign in to send messages.");
+      return;
+    }
+
     const userMessage: ChatMessage = {
       body,
       id: `user-${Date.now()}`,
@@ -2489,44 +3026,42 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
 
     setChatMessages((current) => [...current, userMessage]);
 
-    if (supabase && liveData.activeConversationId) {
-      await supabase.from("messages").insert({
+    if (!supabase || !liveData.activeConversationId) {
+      return;
+    }
+
+    const inserted = await supabase
+      .from("messages")
+      .insert({
         body,
         conversation_id: liveData.activeConversationId,
         delivery_status: "sent",
-        is_demo: true,
-        sender_user_id:
-          role === "therapist" ? demoProviderUserId : demoPatientUserId
-      });
+        is_demo: false,
+        sender_user_id: appUser.id
+      })
+      .select("id")
+      .single();
+
+    const apiUrl = process.env.NEXT_PUBLIC_VALENCE_API_URL;
+
+    if (apiUrl && inserted.data?.id) {
+      void fetch(`${apiUrl.replace(/\/$/, "")}/notifications/message`, {
+        body: JSON.stringify({
+          conversationId: liveData.activeConversationId,
+          messageId: inserted.data.id,
+          senderUserId: appUser.id
+        }),
+        headers: {
+          "Content-Type": "application/json"
+        },
+        method: "POST"
+      }).catch(() => {});
     }
-
-    window.setTimeout(() => {
-      const reply = {
-        body: supabase
-          ? "I received that. I will keep the session context updated here."
-          : "I received that. This conversation stays with your care context.",
-        id: `reply-${Date.now()}`,
-        mine: false
-      };
-
-      if (supabase && liveData.activeConversationId) {
-        void supabase.from("messages").insert({
-          body: reply.body,
-          conversation_id: liveData.activeConversationId,
-          delivery_status: "delivered",
-          is_demo: true,
-          sender_user_id:
-            role === "therapist" ? demoPatientUserId : demoProviderUserId
-        });
-        return;
-      }
-
-      setChatMessages((current) => [...current, reply]);
-    }, 450);
   }
 
   async function createDemoSessionBooking() {
-    if (!supabase) {
+    hapticLight();
+    if (!supabase || !appUser) {
       const newSession: DemoSession = {
         date: "Tomorrow",
         id: `local-session-${Date.now()}`,
@@ -2540,6 +3075,22 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
       return;
     }
 
+    const patientId =
+      role === "patient"
+        ? appUser.patientId
+        : "20000000-0000-4000-8000-000000000010";
+    const providerId =
+      role === "therapist"
+        ? appUser.providerId
+        : liveData.providers.find(
+            (provider) => provider.requestStatus === "accepted"
+          )?.id ?? "30000000-0000-4000-8000-000000000011";
+
+    if (!patientId || !providerId) {
+      setStatus("Create both patient and psychologist profiles before booking.");
+      return;
+    }
+
     const startsAt = new Date();
     startsAt.setDate(startsAt.getDate() + 3);
     startsAt.setHours(15, 0, 0, 0);
@@ -2549,15 +3100,15 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
       .from("appointments")
       .insert({
         ends_at: endsAt.toISOString(),
-        is_demo: true,
+        is_demo: false,
         modality: "video",
         notes: "New booking created from Valence.",
-        patient_id: "20000000-0000-4000-8000-000000000001",
-        provider_id: "30000000-0000-4000-8000-000000000001",
+        patient_id: patientId,
+        provider_id: providerId,
         starts_at: startsAt.toISOString(),
         status: "requested"
       })
-      .select("id, starts_at, status, modality, notes")
+      .select("id, patient_id, provider_id, starts_at, ends_at, status, modality, notes")
       .single();
 
     if (bookingError || !appointment) {
@@ -2567,13 +3118,101 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
 
     setSelectedSession({
       date: formatSessionDate(appointment.starts_at),
+      endsAt: appointment.ends_at ?? undefined,
       id: appointment.id,
       mode: formatModality(appointment.modality),
       notes: appointment.notes ?? "New booking created from Valence.",
       person: role === "therapist" ? "Olivia Martinez" : "Dr. Emma Lin",
+      patientId: appointment.patient_id,
+      providerId: appointment.provider_id,
+      rawStatus: appointment.status as DemoSession["rawStatus"],
+      startsAt: appointment.starts_at ?? undefined,
       status: "Requested",
       time: formatSessionTime(appointment.starts_at)
     });
+  }
+
+  async function requestProviderConnection(provider: DemoProvider) {
+    hapticLight();
+
+    if (!supabase || !appUser?.patientId) {
+      setStatus("Create a patient profile before requesting a psychologist.");
+      return;
+    }
+
+    const { error: requestError } = await supabase
+      .from("therapist_connection_requests")
+      .insert({
+        is_demo: false,
+        message: "I would like to use Valence for our sessions.",
+        patient_id: appUser.patientId,
+        provider_id: provider.id,
+        status: "pending"
+      });
+
+    setStatus(
+      requestError
+        ? "That request could not be sent yet."
+        : `Request sent to ${provider.name}.`
+    );
+  }
+
+  async function updateProviderConnectionRequest(
+    request: DemoConnectionRequest,
+    status: "accepted" | "declined"
+  ) {
+    hapticLight();
+
+    if (!supabase || !appUser?.providerId) {
+      setStatus("Create a psychologist profile before reviewing requests.");
+      return;
+    }
+
+    const { error: requestError } = await supabase
+      .from("therapist_connection_requests")
+      .update({
+        status,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", request.id)
+      .eq("provider_id", appUser.providerId);
+
+    if (requestError) {
+      setStatus("That request could not be updated yet.");
+      return;
+    }
+
+    if (status === "accepted") {
+      const { data: existingConnection } = await supabase
+        .from("patient_provider_connections")
+        .select("id")
+        .eq("patient_id", request.patientId)
+        .eq("provider_id", appUser.providerId)
+        .is("ended_at", null)
+        .maybeSingle();
+
+      if (!existingConnection) {
+        const { error: connectionError } = await supabase
+          .from("patient_provider_connections")
+          .insert({
+            accepted_request_id: request.id,
+            is_demo: false,
+            patient_id: request.patientId,
+            provider_id: appUser.providerId
+          });
+
+        if (connectionError) {
+          setStatus("The request was accepted, but the connection was not saved.");
+          return;
+        }
+      }
+    }
+
+    setStatus(
+      status === "accepted"
+        ? `${request.patientName} is now connected to your practice.`
+        : `Request from ${request.patientName} was declined.`
+    );
   }
 
   const updateDrawer = (
@@ -2598,12 +3237,15 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
       <>
         <RoleChoiceScreen
           onChoose={(nextRole) =>
-            setFlow({
-              carouselIndex: 0,
-              onboardingStep: 0,
-              role: nextRole,
-              stage: "carousel"
-            })
+            {
+              hapticLight();
+              setFlow({
+                carouselIndex: 0,
+                onboardingStep: 0,
+                role: nextRole,
+                stage: "carousel"
+              });
+            }
           }
           versions={versions}
         />
@@ -2617,14 +3259,16 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
       <>
         <CarouselScreen
           flow={flow}
-          onBack={() =>
+          onBack={() => {
+            hapticLight();
             setFlow((current) => ({
               ...current,
               carouselIndex: Math.max(0, current.carouselIndex - 1),
               stage: current.carouselIndex === 0 ? "role" : "carousel"
-            }))
-          }
-          onNext={() =>
+            }));
+          }}
+          onNext={() => {
+            hapticLight();
             setFlow((current) => {
               const slideCount = roleContent[role].carousel.length;
 
@@ -2636,8 +3280,8 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
                 ...current,
                 carouselIndex: current.carouselIndex + 1
               };
-            })
-          }
+            });
+          }}
         />
         {updateDrawer}
       </>
@@ -2651,20 +3295,22 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
           email={email}
           error={error}
           isSubmitting={isSubmitting}
-          onBack={() =>
+          onBack={() => {
+            hapticLight();
             setFlow((current) => ({
               ...current,
               carouselIndex: roleContent[role].carousel.length - 1,
               stage: "carousel"
-            }))
-          }
-          onContinueDemo={() =>
+            }));
+          }}
+          onContinueDemo={() => {
+            hapticLight();
             setFlow((current) => ({
               ...current,
               onboardingStep: 0,
               stage: "onboarding"
-            }))
-          }
+            }));
+          }}
           onEmailChange={setEmail}
           onProvider={(provider) => void continueWithProvider(provider)}
           onSubmit={(event) => void requestEmailAccess(event)}
@@ -2681,14 +3327,16 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
       <>
         <OnboardingScreen
           flow={flow}
-          onBack={() =>
+          onBack={() => {
+            hapticLight();
             setFlow((current) => ({
               ...current,
               onboardingStep: Math.max(0, current.onboardingStep - 1),
               stage: current.onboardingStep === 0 ? "auth" : "onboarding"
-            }))
-          }
-          onNext={() =>
+            }));
+          }}
+          onNext={() => {
+            hapticLight();
             setFlow((current) => {
               const stepCount = roleContent[role].onboarding.length;
 
@@ -2700,15 +3348,16 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
                 ...current,
                 onboardingStep: current.onboardingStep + 1
               };
-            })
-          }
-          onSkipToApp={() =>
+            });
+          }}
+          onSkipToApp={() => {
+            hapticLight();
             setFlow((current) => ({
               ...current,
               onboardingStep: 0,
               stage: "app"
-            }))
-          }
+            }));
+          }}
         />
         {updateDrawer}
       </>
@@ -2720,14 +3369,28 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
       <WorkspaceShell
         activePage={activePage}
         onNavigate={navigateWithinApp}
-        onOpenMessages={() => setMessagesOpen(true)}
+        onOpenMessages={() => {
+          hapticLight();
+          setMessagesOpen(true);
+        }}
+        onOpenRoleSwitcher={() => {
+          hapticLight();
+          setRoleDrawerOpen(true);
+        }}
         onReset={resetDemoFlow}
         role={role}
       >
         <ActivePage
           liveData={liveData}
+          onAcceptConnectionRequest={(request) =>
+            void updateProviderConnectionRequest(request, "accepted")
+          }
+          onDeclineConnectionRequest={(request) =>
+            void updateProviderConnectionRequest(request, "declined")
+          }
           onEnablePushNotifications={() => void enablePushNotifications()}
           onBookSession={() => void createDemoSessionBooking()}
+          onRequestProvider={(provider) => void requestProviderConnection(provider)}
           onReset={resetDemoFlow}
           onSelectPatient={(patient) => setSelectedPatient(patient)}
           onSelectSession={(session) => setSelectedSession(session)}
@@ -2767,6 +3430,17 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
         }}
         open={Boolean(selectedPatient)}
         patient={selectedPatient}
+      />
+      <RoleSwitcherDrawer
+        currentRole={role}
+        onOpenChange={setRoleDrawerOpen}
+        onSelectRole={(nextRole) => {
+          hapticLight();
+          setFlow((current) => ({ ...current, role: nextRole }));
+          setRoleDrawerOpen(false);
+          navigateWithinApp("home");
+        }}
+        open={roleDrawerOpen}
       />
       <DailyCallScreen
         onClose={() => setCallSession(null)}
