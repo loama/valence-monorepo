@@ -1,40 +1,35 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, type LucideIcon } from "lucide-react";
 import type { PointerEvent, ReactNode } from "react";
 import { useRef } from "react";
 
-import { OnboardingFields } from "@/components/app-demo/onboarding-fields";
-import type { OnboardingStep } from "@/components/app-demo/entry-content";
+import type { WelcomeSlide } from "@/components/app-demo/entry-content";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
-export function OnboardingCarousel({
+export function WelcomeCarouselFrame({
   audience,
   brand,
+  icon: Icon,
+  index,
   onBack,
   onNext,
-  onSkipToApp,
-  onStepBack,
-  onStepForward,
-  stepIndex,
-  steps
+  slides
 }: {
   audience: string;
   brand: ReactNode;
+  icon: LucideIcon;
+  index: number;
   onBack: () => void;
   onNext: () => void;
-  onSkipToApp: () => void;
-  onStepBack: () => void;
-  onStepForward: () => void;
-  stepIndex: number;
-  steps: OnboardingStep[];
+  slides: WelcomeSlide[];
 }) {
   const startXRef = useRef<number | null>(null);
-  const progress = ((stepIndex + 1) / steps.length) * 100;
+  const progress = ((index + 1) / slides.length) * 100;
 
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
     startXRef.current = event.clientX;
@@ -51,16 +46,16 @@ export function OnboardingCarousel({
 
     const deltaX = event.clientX - startX;
 
-    if (Math.abs(deltaX) < 48) {
+    if (Math.abs(deltaX) < 44) {
       return;
     }
 
     if (deltaX < 0) {
-      onStepForward();
+      onNext();
       return;
     }
 
-    onStepBack();
+    onBack();
   }
 
   return (
@@ -72,66 +67,64 @@ export function OnboardingCarousel({
           </Button>
           {brand}
           <Badge variant="secondary">
-            Step {stepIndex + 1} / {steps.length}
+            {index + 1} / {slides.length}
           </Badge>
         </div>
       </div>
-      <div className="flex flex-1 flex-col gap-5 overflow-hidden pb-24 pt-24">
-        <div>
-          <Badge variant="outline">{audience} onboarding</Badge>
-          <h1 className="mt-4 text-3xl font-semibold leading-tight">
-            Tell us what should shape your care
-          </h1>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Swipe through each card or use the buttons below. You can update
-            these preferences later from your profile.
-          </p>
-        </div>
-        <Progress value={progress} />
+
+      <div className="flex flex-1 flex-col justify-center gap-5 overflow-hidden pb-24 pt-24">
         <div
-          className="touch-pan-y overflow-hidden"
+          className="touch-pan-y overflow-visible"
           onPointerDown={handlePointerDown}
           onPointerUp={handlePointerUp}
         >
           <div
             className="flex transition-transform duration-300 ease-out"
-            style={{ transform: `translateX(-${stepIndex * 100}%)` }}
+            style={{ transform: `translateX(-${index * 100}%)` }}
           >
-            {steps.map((step, index) => (
-              <div className="min-w-full pr-0" key={step.title}>
+            {slides.map((slide, slideIndex) => (
+              <div className="min-w-full px-0" key={slide.title}>
                 <Card
                   className={cn(
-                    "min-h-[22rem] overflow-hidden transition-opacity duration-300",
-                    index === stepIndex ? "opacity-100" : "opacity-45"
+                    "min-h-[28rem] overflow-hidden transition-all duration-300",
+                    slideIndex === index
+                      ? "scale-100 opacity-100"
+                      : "scale-[0.96] opacity-50"
                   )}
                 >
-                  <CardContent className="flex min-h-[22rem] flex-col gap-5 p-5">
+                  <CardContent className="flex h-full min-h-[28rem] flex-col justify-between p-6">
+                    <div className="flex justify-center pt-10">
+                      <div className="grid size-32 place-items-center rounded-[2rem] bg-[var(--role-accent-soft)] text-[var(--role-accent)]">
+                        <Icon className="size-16" />
+                      </div>
+                    </div>
                     <div>
-                      <Badge variant="secondary">
-                        {String(index + 1).padStart(2, "0")}
+                      <Badge className="mb-4" variant="outline">
+                        {audience}
                       </Badge>
-                      <h2 className="mt-3 text-2xl font-semibold leading-tight">
-                        {step.title}
-                      </h2>
-                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        {step.description}
+                      <h1 className="text-4xl font-semibold leading-tight">
+                        {slide.title}
+                      </h1>
+                      <p className="mt-3 text-base leading-7 text-muted-foreground">
+                        {slide.body}
                       </p>
                     </div>
-                    <OnboardingFields step={step} />
                   </CardContent>
                 </Card>
               </div>
             ))}
           </div>
         </div>
+        <Progress value={progress} />
       </div>
+
       <div className="fixed bottom-0 left-1/2 z-20 w-full max-w-md -translate-x-1/2 bg-background/85 px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 backdrop-blur-md">
         <div className="grid grid-cols-[1fr_2fr] gap-3">
-          <Button onClick={onSkipToApp} type="button" variant="outline">
-            Skip
+          <Button onClick={onBack} type="button" variant="outline">
+            Back
           </Button>
-          <Button className="font-semibold" onClick={onNext} type="button">
-            {stepIndex === steps.length - 1 ? "Open app" : "Next"}
+          <Button onClick={onNext} type="button">
+            {index === slides.length - 1 ? "Continue" : "Next"}
           </Button>
         </div>
       </div>

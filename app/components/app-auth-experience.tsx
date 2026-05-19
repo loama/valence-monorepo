@@ -222,13 +222,13 @@ const roleContent: Record<
       },
       {
         title: "Message without losing context",
-        body: "See how private chat will look once backend messages are live."
+        body: "Keep the conversation with your care team close to the session."
       }
     ],
     onboarding: [
       {
         title: "About you",
-        description: "A few basics help shape your demo experience.",
+        description: "A few basics help shape your care experience.",
         fields: [
           { label: "Preferred name", placeholder: "Olivia", type: "input" },
           {
@@ -311,7 +311,7 @@ const roleContent: Record<
     onboarding: [
       {
         title: "Practice profile",
-        description: "Set the name and modality shown in the demo.",
+        description: "Set the name and modality shown in your workspace.",
         fields: [
           { label: "Display name", placeholder: "Dra. Emma Lin", type: "input" },
           {
@@ -335,7 +335,7 @@ const roleContent: Record<
       },
       {
         title: "Availability",
-        description: "Make the schedule feel realistic for the demo.",
+        description: "Make the schedule match how you work with patients.",
         fields: [
           { label: "Clinic hours", placeholder: "Mon to Thu, 10 AM to 6 PM", type: "input" },
           {
@@ -1350,7 +1350,7 @@ function RoleChoiceScreen({
           </h1>
           <p className="mt-3 text-base leading-7 text-muted-foreground">
             Choose a role to tailor the accent color, onboarding, navigation,
-            and demo screens.
+            and workspace.
           </p>
         </div>
         <div className="grid gap-3">
@@ -1467,8 +1467,8 @@ function AuthScreen({
             Enter Valence securely
           </h1>
           <p className="mt-3 text-base leading-7 text-muted-foreground">
-            Google, Apple, and email are wired to Supabase. The demo button lets
-            you move through the prototype without backend data.
+            Continue with Google, Apple, or a secure email code. You can also
+            enter the workspace to explore your setup.
           </p>
         </div>
         <form className="flex flex-col gap-3" onSubmit={onSubmit}>
@@ -1507,7 +1507,7 @@ function AuthScreen({
             Continue with Apple
           </Button>
           <Button onClick={onContinueDemo} type="button" variant="secondary">
-            Continue demo without login
+            Continue without login
           </Button>
         </div>
         {status ? (
@@ -1602,6 +1602,7 @@ function MessagesPanel({
   role: UserRole;
 }) {
   const [draft, setDraft] = useState("");
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -1626,6 +1627,9 @@ function MessagesPanel({
 
     onSend(body);
     setDraft("");
+    window.requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
   }
 
   if (!open) {
@@ -1634,11 +1638,11 @@ function MessagesPanel({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-background text-foreground"
+      className="fixed inset-0 z-50 overflow-hidden bg-background text-foreground"
       style={roleAccentStyle(role)}
     >
-      <div className="mx-auto flex h-dvh max-w-md flex-col">
-        <header className="shrink-0 border-b border-border/30 bg-background/95 px-5 pb-3 pt-[calc(env(safe-area-inset-top)+0.8rem)] backdrop-blur-xl">
+      <div className="mx-auto h-dvh max-w-md">
+        <header className="fixed left-1/2 top-0 z-10 w-full max-w-md -translate-x-1/2 border-b border-border/30 bg-background/95 px-5 pb-3 pt-[calc(env(safe-area-inset-top)+0.8rem)] backdrop-blur-xl">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="font-semibold leading-tight">Messages</p>
@@ -1658,10 +1662,11 @@ function MessagesPanel({
           </div>
         </header>
         <div
-          className="min-h-0 flex-1 overflow-y-auto px-5 transition-[padding-bottom] duration-200 ease-out"
+          className="absolute left-1/2 w-full max-w-md -translate-x-1/2 overflow-y-auto px-5 transition-[bottom] duration-200 ease-out"
           ref={scrollRef}
           style={{
-            paddingBottom: `calc(6.5rem + env(safe-area-inset-bottom) + ${keyboardInset}px)`
+            bottom: `calc(6.5rem + env(safe-area-inset-bottom) + ${keyboardInset}px)`,
+            top: "calc(env(safe-area-inset-top) + 4.8rem)"
           }}
         >
           <div className="flex min-h-full flex-col gap-3 pt-[80vh]">
@@ -1693,13 +1698,20 @@ function MessagesPanel({
               onChange={(event) => setDraft(event.currentTarget.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
+                  event.preventDefault();
                   sendMessage();
                 }
               }}
               placeholder="Write a message"
+              ref={inputRef}
               value={draft}
             />
-            <Button onClick={sendMessage} size="icon" type="button">
+            <Button
+              onClick={sendMessage}
+              onPointerDown={(event) => event.preventDefault()}
+              size="icon"
+              type="button"
+            >
               <Send />
             </Button>
           </div>
@@ -1742,10 +1754,9 @@ function SessionDetailDrawer({
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Demo actions</CardTitle>
+              <CardTitle className="text-lg">Session actions</CardTitle>
               <CardDescription>
-                These buttons are local only, but they show how the session flow
-                will feel.
+                Join the call or review the preparation notes for this session.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-2">
@@ -2024,7 +2035,7 @@ function WorkspaceShell({
         onClick={onReset}
         type="button"
       >
-        Reset demo
+        Reset onboarding
       </button>
     </div>
   );
@@ -2361,10 +2372,14 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
           dispatchAuth({ type: "user-changed", user });
         }
       } catch (authError) {
-        setError(
+        const message =
           authError instanceof Error
             ? authError.message
-            : "We could not complete the secure sign-in flow."
+            : "We could not complete the secure sign-in flow.";
+        setError(
+          message.toLowerCase().includes("not implemented")
+            ? "The native sign-in plugin is missing from this installed build. Reinstall the app from Xcode once, then Google sign-in will work."
+            : message
         );
       }
     }
@@ -2487,8 +2502,8 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
     window.setTimeout(() => {
       const reply = {
         body: supabase
-          ? "This came back through the demo data path. Realtime will keep this panel updated."
-          : "This is not connected to backend, but this is how messages look.",
+          ? "I received that. I will keep the session context updated here."
+          : "I received that. This conversation stays with your care context.",
         id: `reply-${Date.now()}`,
         mine: false
       };
@@ -2515,7 +2530,7 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
         date: "Tomorrow",
         id: `local-session-${Date.now()}`,
         mode: "Video",
-        notes: "New local booking created from the demo UI.",
+        notes: "New booking created from Valence.",
         person: role === "therapist" ? "Olivia Martinez" : "Dr. Emma Lin",
         status: "Requested",
         time: "3:00 PM"
@@ -2535,7 +2550,7 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
         ends_at: endsAt.toISOString(),
         is_demo: true,
         modality: "video",
-        notes: "New demo booking created from the app.",
+        notes: "New booking created from Valence.",
         patient_id: "20000000-0000-4000-8000-000000000001",
         provider_id: "30000000-0000-4000-8000-000000000001",
         starts_at: startsAt.toISOString(),
@@ -2545,7 +2560,7 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
       .single();
 
     if (bookingError || !appointment) {
-      setStatus("Could not create the demo booking yet.");
+      setStatus("Could not create the booking yet.");
       return;
     }
 
@@ -2553,7 +2568,7 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
       date: formatSessionDate(appointment.starts_at),
       id: appointment.id,
       mode: formatModality(appointment.modality),
-      notes: appointment.notes ?? "New demo booking created from the app.",
+      notes: appointment.notes ?? "New booking created from Valence.",
       person: role === "therapist" ? "Olivia Martinez" : "Dr. Emma Lin",
       status: "Requested",
       time: formatSessionTime(appointment.starts_at)
