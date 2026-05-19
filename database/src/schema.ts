@@ -314,11 +314,14 @@ export const appointments = pgTable(
     location: text("location"),
     dailyRoomName: text("daily_room_name"),
     dailyRoomUrl: text("daily_room_url"),
+    dailyRoomTokenUrl: text("daily_room_token_url"),
     dailyRoomExpiresAt: timestamp("daily_room_expires_at", { withTimezone: true }),
     notes: text("notes"),
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {
       onDelete: "set null"
     }),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     isDemo: boolean("is_demo").default(false).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
@@ -504,11 +507,46 @@ export const appVersions = pgTable(
   ]
 );
 
+export const devices = pgTable(
+  "devices",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    installationId: text("installation_id").notNull().unique(),
+    platform: appPlatform("platform").notNull(),
+    bundleId: text("bundle_id"),
+    appVersion: text("app_version"),
+    pushToken: text("push_token").unique(),
+    pushTokenProvider: text("push_token_provider").default("apns").notNull(),
+    pushTokenUpdatedAt: timestamp("push_token_updated_at", {
+      withTimezone: true
+    }),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull()
+  },
+  (table) => [
+    index("devices_user_id_idx").on(table.userId),
+    index("devices_installation_id_idx").on(table.installationId),
+    index("devices_push_token_idx").on(table.pushToken)
+  ]
+);
+
 export const devicePushTokens = pgTable("device_push_tokens", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  deviceId: uuid("device_id").references(() => devices.id, {
+    onDelete: "set null"
+  }),
   platform: appPlatform("platform").notNull(),
   token: text("token").notNull().unique(),
+  tokenProvider: text("token_provider").default("apns").notNull(),
   badgeCount: integer("badge_count").default(0).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
@@ -517,6 +555,34 @@ export const devicePushTokens = pgTable("device_push_tokens", {
     .defaultNow()
     .notNull()
 });
+
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    deviceId: uuid("device_id").references(() => devices.id, {
+      onDelete: "set null"
+    }),
+    authSessionId: uuid("auth_session_id"),
+    status: text("status").default("active").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .default(sql`'{}'::jsonb`)
+      .notNull()
+  },
+  (table) => [
+    index("sessions_user_id_status_idx").on(table.userId, table.status),
+    index("sessions_device_id_status_idx").on(table.deviceId, table.status)
+  ]
+);
 
 export const notificationEvents = pgTable(
   "notification_events",
