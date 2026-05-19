@@ -18,7 +18,6 @@ coverage/
 .capgo_key_v2.pub
 **/.capgo_key_v2.pub
 
-app/android/
 app/node_modules/
 admin/node_modules/
 website/node_modules/

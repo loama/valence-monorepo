@@ -14,7 +14,11 @@
     "cap:sync": "bunx cap sync",
     "cap:sync:ios": "bun run build:mobile && bunx cap sync ios",
     "cap:add:ios": "bunx cap add ios",
-    "cap:add:android": "bunx cap add android"
+    "cap:add:android": "bunx cap add android",
+    "android:sync": "bun run build:mobile && bunx cap sync android",
+    "android:open": "bunx cap open android",
+    "android:build": "bun run android:sync && bun scripts/android-gradle.mjs assembleDebug",
+    "android:test": "bun scripts/android-gradle.mjs testDebugUnitTest"
   },
   "dependencies": {
     "@capacitor-firebase/messaging": "^8.2.0",
