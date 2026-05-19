@@ -32,14 +32,40 @@ type NotificationPayload = {
 };
 
 type KapsoWebhookPayload = {
+  data?: {
+    direction?: string;
+    event?: string;
+    from?: string;
+    message?: {
+      direction?: string;
+      from?: string;
+      text?: string | { body?: string };
+    };
+    phone?: string;
+    phone_number?: string;
+    type?: string;
+  };
+  direction?: string;
+  event?: string;
+  event_type?: string;
   from?: string;
+  messages?: Array<{
+    direction?: string;
+    from?: string;
+    text?: string | { body?: string };
+    type?: string;
+  }>;
   phone?: string;
   phone_number?: string;
   reply_url?: string;
+  statuses?: unknown[];
   text?: string;
+  type?: string;
   message?: {
+    direction?: string;
     from?: string;
     text?: string | { body?: string };
+    type?: string;
   };
 };
 
@@ -365,9 +391,18 @@ app.post("/webhooks/kapso-whatsapp", async (request, response) => {
   }
 
   const payload = request.body as KapsoWebhookPayload;
-  const recipient =
-    payload.from ?? payload.phone ?? payload.phone_number ?? payload.message?.from;
+  const recipient = getKapsoInboundRecipient(payload);
+  const shouldReply = isKapsoInboundMessageEvent(payload);
   const reply = `hello, this will work soon ${new Date().toISOString()}`;
+
+  if (!shouldReply) {
+    response.json({
+      ok: true,
+      ignored: true,
+      reason: "non_inbound_message_event"
+    });
+    return;
+  }
 
   const delivery = recipient
     ? await sendKapsoWhatsAppReply({
@@ -384,6 +419,92 @@ app.post("/webhooks/kapso-whatsapp", async (request, response) => {
     reply
   });
 });
+
+function getKapsoInboundRecipient(payload: KapsoWebhookPayload) {
+  return (
+    payload.from ??
+    payload.phone ??
+    payload.phone_number ??
+    payload.message?.from ??
+    payload.messages?.[0]?.from ??
+    payload.data?.from ??
+    payload.data?.phone ??
+    payload.data?.phone_number ??
+    payload.data?.message?.from
+  );
+}
+
+function getKapsoText(payload: KapsoWebhookPayload) {
+  const text =
+    payload.text ??
+    payload.message?.text ??
+    payload.messages?.[0]?.text ??
+    payload.data?.message?.text;
+
+  if (typeof text === "string") {
+    return text.trim();
+  }
+
+  return text?.body?.trim() ?? "";
+}
+
+function normalizeKapsoValue(value: string | undefined) {
+  return value?.trim().toLowerCase().replaceAll(" ", "_") ?? "";
+}
+
+function getKapsoEventName(payload: KapsoWebhookPayload) {
+  return normalizeKapsoValue(
+    payload.event ??
+      payload.event_type ??
+      payload.type ??
+      payload.data?.event ??
+      payload.data?.type
+  );
+}
+
+function getKapsoMessageDirection(payload: KapsoWebhookPayload) {
+  return normalizeKapsoValue(
+    payload.direction ??
+      payload.message?.direction ??
+      payload.messages?.[0]?.direction ??
+      payload.data?.direction ??
+      payload.data?.message?.direction
+  );
+}
+
+function isKapsoInboundMessageEvent(payload: KapsoWebhookPayload) {
+  const eventName = getKapsoEventName(payload);
+  const direction = getKapsoMessageDirection(payload);
+
+  if (
+    direction === "outbound" ||
+    direction === "sent" ||
+    eventName.includes("message_sent") ||
+    eventName.includes("message_delivered") ||
+    eventName.includes("message_read") ||
+    eventName.includes("message_failed") ||
+    eventName.includes("conversation_inactive") ||
+    eventName.includes("conversation_ended") ||
+    payload.statuses
+  ) {
+    return false;
+  }
+
+  const hasRecipient = Boolean(getKapsoInboundRecipient(payload));
+  const hasMessageText = Boolean(getKapsoText(payload));
+
+  if (eventName) {
+    return (
+      hasRecipient &&
+      hasMessageText &&
+      (eventName.includes("message_received") ||
+        eventName.includes("message.received") ||
+        eventName === "message")
+    );
+  }
+
+  return hasRecipient && hasMessageText;
+}
 
 function getKapsoRequestKey(request: express.Request) {
   const authorization = request.header("authorization");
@@ -434,44 +555,68 @@ async function sendKapsoWhatsAppReply({
       : process.env.KAPSO_DEVELOPMENT_PHONE_NUMBER_ID;
 
   if (replyUrl) {
-    const replyResponse = await fetch(replyUrl, {
-      body: JSON.stringify({ body: reply, text: reply, to: recipient }),
-      headers: {
-        "Content-Type": "application/json",
-        ...(apiKey ? { "X-API-Key": apiKey } : {})
-      },
-      method: "POST"
-    });
+    try {
+      const replyResponse = await fetch(replyUrl, {
+        body: JSON.stringify({ body: reply, text: reply, to: recipient }),
+        headers: {
+          "Content-Type": "application/json",
+          ...(apiKey ? { "X-API-Key": apiKey } : {})
+        },
+        method: "POST"
+      });
 
-    return { ok: replyResponse.ok, status: replyResponse.status, via: "reply_url" };
+      return {
+        ok: replyResponse.ok,
+        status: replyResponse.status,
+        via: "reply_url"
+      };
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : String(error),
+        ok: false,
+        via: "reply_url"
+      };
+    }
   }
 
   if (!apiKey || !phoneNumberId) {
     return { skipped: "missing_kapso_phone_number_id" };
   }
 
-  const kapsoResponse = await fetch(
-    `https://api.kapso.ai/api/v1/meta/whatsapp/messages/${encodeURIComponent(phoneNumberId)}`,
-    {
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        recipient_type: "individual",
-        text: {
-          body: reply,
-          preview_url: false
+  try {
+    const kapsoResponse = await fetch(
+      `https://api.kapso.ai/api/v1/meta/whatsapp/messages/${encodeURIComponent(phoneNumberId)}`,
+      {
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          text: {
+            body: reply,
+            preview_url: false
+          },
+          to: recipient,
+          type: "text"
+        }),
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": apiKey
         },
-        to: recipient,
-        type: "text"
-      }),
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Key": apiKey
-      },
-      method: "POST"
-    }
-  );
+        method: "POST"
+      }
+    );
 
-  return { ok: kapsoResponse.ok, status: kapsoResponse.status, via: "kapso" };
+    return {
+      ok: kapsoResponse.ok,
+      status: kapsoResponse.status,
+      via: "kapso"
+    };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : String(error),
+      ok: false,
+      via: "kapso"
+    };
+  }
 }
 
 app.listen(port, () => {
