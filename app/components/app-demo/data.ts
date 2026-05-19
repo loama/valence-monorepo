@@ -82,14 +82,14 @@ export const roleTheme: Record<
   }
 > = {
   patient: {
-    accent: "#7357f6",
-    accentSoft: "#ede9fe",
+    accent: "#8bcf52",
+    accentSoft: "#e5f6cf",
     audience: "Patient",
     icon: HeartPulse
   },
   therapist: {
-    accent: "#2563eb",
-    accentSoft: "#dbeafe",
+    accent: "#123b8f",
+    accentSoft: "#dce8ff",
     audience: "Psychologist",
     icon: Stethoscope
   }

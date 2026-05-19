@@ -30,7 +30,7 @@ export function TherapistHomeScreen() {
           <CardContent className="grid gap-3">
             <Progress value={74} />
             <div className="grid grid-cols-2 gap-3">
-              <Card className="shadow-none">
+              <Card>
                 <CardContent className="p-4">
                   <CalendarDays className="mb-3 text-primary" />
                   <p className="text-2xl font-semibold">4</p>
@@ -39,7 +39,7 @@ export function TherapistHomeScreen() {
                   </p>
                 </CardContent>
               </Card>
-              <Card className="shadow-none">
+              <Card>
                 <CardContent className="p-4">
                   <UsersRound className="mb-3 text-primary" />
                   <p className="text-2xl font-semibold">12</p>

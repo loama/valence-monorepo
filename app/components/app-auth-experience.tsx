@@ -13,8 +13,9 @@ import {
   type SetStateAction
 } from "react";
 import { App } from "@capacitor/app";
-import { AppLauncher } from "@capacitor/app-launcher";
+import { Browser } from "@capacitor/browser";
 import { Capacitor, type PluginListenerHandle } from "@capacitor/core";
+import { Keyboard } from "@capacitor/keyboard";
 import { PushNotifications } from "@capacitor/push-notifications";
 import {
   CapacitorUpdater,
@@ -25,25 +26,13 @@ import type { Provider, User } from "@supabase/supabase-js";
 import {
   Apple,
   ArrowLeft,
-  Bell,
-  BookOpen,
-  CalendarDays,
-  Check,
-  ChevronRight,
-  ClipboardList,
   CloudDownload,
   HeartPulse,
-  Home,
-  LockKeyhole,
-  LogOut,
   Mail,
   MessageCircle,
-  Search,
   Send,
   Sparkles,
   Stethoscope,
-  UserRound,
-  UsersRound,
   type LucideIcon
 } from "lucide-react";
 import packageJson from "@/package.json";
@@ -51,7 +40,10 @@ import releaseVersion from "@/release-version.json";
 
 import {
   demoPatients as previewPatients,
+  pageItems,
+  patientNavItems,
   patientSessions as previewPatientSessions,
+  therapistNavItems,
   therapistSessions as previewTherapistSessions
 } from "@/components/app-demo/data";
 import { PatientExercisesScreen } from "@/components/app-demo/screens/patient/exercises-screen";
@@ -66,6 +58,7 @@ import { TherapistPatientsScreen } from "@/components/app-demo/screens/therapist
 import { TherapistProfileScreen } from "@/components/app-demo/screens/therapist/profile-screen";
 import { TherapistSessionsScreen } from "@/components/app-demo/screens/therapist/sessions-screen";
 import { TherapistWelcomeCarousel } from "@/components/app-demo/screens/therapist/welcome-carousel";
+import type { DemoPatient, DemoSession, PageKey } from "@/components/app-demo/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -87,9 +80,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -98,14 +89,6 @@ const nativeRedirectUrl =
   process.env.NEXT_PUBLIC_APP_NATIVE_REDIRECT_URL ??
   "valence://auth/callback";
 const flowStorageKey = "valence-demo-flow-v3";
-
-export type PageKey =
-  | "home"
-  | "sessions"
-  | "exercises"
-  | "patients"
-  | "messages"
-  | "profile";
 
 type UserRole = "patient" | "therapist";
 type FlowStage = "role" | "carousel" | "auth" | "onboarding" | "app";
@@ -169,37 +152,10 @@ type NativeUpdateAction =
       type: "dismiss";
     };
 
-type PageItem = {
-  description: string;
-  href: string;
-  icon: LucideIcon;
-  label: string;
-  page: PageKey;
-};
-
 type ChatMessage = {
   body: string;
   id: string;
   mine: boolean;
-};
-
-type DemoSession = {
-  date: string;
-  id: string;
-  mode: string;
-  notes: string;
-  person: string;
-  status: string;
-  time: string;
-};
-
-type DemoPatient = {
-  focus: string;
-  id: string;
-  lastSeen: string;
-  name: string;
-  progress: number;
-  risk: string;
 };
 
 const fallbackInstalledVersion = packageJson.version;
@@ -207,51 +163,6 @@ const appReleaseNumber = Number(releaseVersion.version);
 const appReleaseVersion = Number.isInteger(appReleaseNumber)
   ? String(appReleaseNumber)
   : fallbackInstalledVersion;
-
-const pageItems: Record<PageKey, PageItem> = {
-  home: {
-    description: "Your starting point",
-    href: `${appRouteBasePath}/`,
-    icon: Home,
-    label: "Home",
-    page: "home"
-  },
-  sessions: {
-    description: "Upcoming care sessions",
-    href: `${appRouteBasePath}/sessions/`,
-    icon: CalendarDays,
-    label: "Sessions",
-    page: "sessions"
-  },
-  exercises: {
-    description: "Practice between sessions",
-    href: `${appRouteBasePath}/exercises/`,
-    icon: BookOpen,
-    label: "Exercises",
-    page: "exercises"
-  },
-  patients: {
-    description: "Client list and notes",
-    href: `${appRouteBasePath}/patients/`,
-    icon: UsersRound,
-    label: "Patients",
-    page: "patients"
-  },
-  messages: {
-    description: "Local message demo",
-    href: `${appRouteBasePath}/messages/`,
-    icon: MessageCircle,
-    label: "Messages",
-    page: "messages"
-  },
-  profile: {
-    description: "Profile and demo settings",
-    href: `${appRouteBasePath}/profile/`,
-    icon: UserRound,
-    label: "Profile",
-    page: "profile"
-  }
-};
 
 const roleContent: Record<
   UserRole,
@@ -273,8 +184,8 @@ const roleContent: Record<
   }
 > = {
   patient: {
-    accent: "#7357f6",
-    accentSoft: "#ede9fe",
+    accent: "#8bcf52",
+    accentSoft: "#e5f6cf",
     audience: "Patient",
     carousel: [
       {
@@ -356,8 +267,8 @@ const roleContent: Record<
     ]
   },
   therapist: {
-    accent: "#2563eb",
-    accentSoft: "#dbeafe",
+    accent: "#123b8f",
+    accentSoft: "#dce8ff",
     audience: "Psychologist",
     carousel: [
       {
@@ -440,114 +351,6 @@ const roleContent: Record<
     ]
   }
 };
-
-const patientNavItems = [
-  pageItems.home,
-  pageItems.sessions,
-  pageItems.exercises,
-  pageItems.profile
-];
-const therapistNavItems = [
-  pageItems.home,
-  pageItems.sessions,
-  pageItems.patients,
-  pageItems.profile
-];
-
-const demoSessions: DemoSession[] = [
-  {
-    date: "Today",
-    id: "session-1",
-    mode: "Video",
-    notes: "Review sleep log and set one small practice for the week.",
-    person: "Dr. Emma Lin",
-    status: "Confirmed",
-    time: "5:30 PM"
-  },
-  {
-    date: "Thursday",
-    id: "session-2",
-    mode: "In person",
-    notes: "Prepare questions around work stress and recovery routines.",
-    person: "Dr. Rafael Torres",
-    status: "Needs confirmation",
-    time: "10:00 AM"
-  },
-  {
-    date: "May 28",
-    id: "session-3",
-    mode: "Video",
-    notes: "Follow up on grounding exercise and relationship goals.",
-    person: "Dr. Emma Lin",
-    status: "Confirmed",
-    time: "2:15 PM"
-  }
-];
-
-const therapistSessions: DemoSession[] = [
-  {
-    date: "Today",
-    id: "clinical-1",
-    mode: "Video",
-    notes: "Sofía wants to discuss sleep and work conflict.",
-    person: "Sofía Martínez",
-    status: "Confirmed",
-    time: "4:00 PM"
-  },
-  {
-    date: "Today",
-    id: "clinical-2",
-    mode: "In person",
-    notes: "Mateo completed intake and has one open consent item.",
-    person: "Mateo Ruiz",
-    status: "Intake",
-    time: "6:30 PM"
-  },
-  {
-    date: "Tomorrow",
-    id: "clinical-3",
-    mode: "Video",
-    notes: "Ana shared a new journal entry about relationship boundaries.",
-    person: "Ana Beltrán",
-    status: "Confirmed",
-    time: "11:00 AM"
-  }
-];
-
-const demoPatients: DemoPatient[] = [
-  {
-    focus: "Sleep, anxiety, work stress",
-    id: "patient-1",
-    lastSeen: "Today",
-    name: "Sofía Martínez",
-    progress: 72,
-    risk: "Low"
-  },
-  {
-    focus: "Intake, family context",
-    id: "patient-2",
-    lastSeen: "Yesterday",
-    name: "Mateo Ruiz",
-    progress: 41,
-    risk: "Medium"
-  },
-  {
-    focus: "Relationships, boundaries",
-    id: "patient-3",
-    lastSeen: "May 16",
-    name: "Ana Beltrán",
-    progress: 63,
-    risk: "Low"
-  },
-  {
-    focus: "Panic symptoms, exposure",
-    id: "patient-4",
-    lastSeen: "May 14",
-    name: "Diego Herrera",
-    progress: 56,
-    risk: "Medium"
-  }
-];
 
 function getInitialFlow(): DemoFlowState {
   if (typeof window === "undefined") {
@@ -1023,6 +826,54 @@ function useDemoFlow() {
   return [flow, setFlow] as const;
 }
 
+function bindKeyboardInsetLifecycle(
+  setKeyboardInset: Dispatch<SetStateAction<number>>
+) {
+  const handles: PluginListenerHandle[] = [];
+  let isActive = true;
+
+  bindListener(
+    Keyboard.addListener("keyboardWillShow", (info) => {
+      if (isActive) {
+        setKeyboardInset(info.keyboardHeight);
+      }
+    }),
+    handles,
+    () => isActive
+  );
+
+  bindListener(
+    Keyboard.addListener("keyboardWillHide", () => {
+      if (isActive) {
+        setKeyboardInset(0);
+      }
+    }),
+    handles,
+    () => isActive
+  );
+
+  return () => {
+    isActive = false;
+    for (const handle of handles) {
+      void handle.remove();
+    }
+  };
+}
+
+function useKeyboardInset() {
+  const [keyboardInset, setKeyboardInset] = useState(0);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) {
+      return () => {};
+    }
+
+    return bindKeyboardInsetLifecycle(setKeyboardInset);
+  }, []);
+
+  return keyboardInset;
+}
+
 function roleAccentStyle(role: UserRole | null) {
   const roleKey = role ?? "patient";
   const content = roleContent[roleKey];
@@ -1036,8 +887,9 @@ function roleAccentStyle(role: UserRole | null) {
 function BrandLogo({ className }: { className?: string }) {
   return (
     <span className={cn("valence-logo text-2xl", className)}>
+      <span className="valence-loop" aria-hidden="true" />
       valence
-      <span className="valence-spark ml-1.5 size-3.5" />
+      <span className="valence-spark ml-1.5 size-3" />
     </span>
   );
 }
@@ -1392,12 +1244,14 @@ function SplashScreen({ versions }: { versions: VersionState }) {
 }
 
 function ChatDrawer({
+  keyboardInset,
   messages,
   onOpenChange,
   onSend,
   open,
   role
 }: {
+  keyboardInset: number;
   messages: ChatMessage[];
   onOpenChange: (open: boolean) => void;
   onSend: (body: string) => void;
@@ -1419,7 +1273,12 @@ function ChatDrawer({
 
   return (
     <Drawer onOpenChange={onOpenChange} open={open} shouldScaleBackground={false}>
-      <DrawerContent className="mx-auto flex h-[86dvh] max-w-md flex-col">
+      <DrawerContent
+        className="mx-auto flex h-[86dvh] max-w-md flex-col rounded-t-[1.75rem] transition-transform duration-200 ease-out"
+        style={{
+          transform: `translateY(-${keyboardInset}px)`
+        }}
+      >
         <DrawerHeader className="text-left">
           <DrawerTitle>Messages</DrawerTitle>
           <DrawerDescription>
@@ -1431,7 +1290,7 @@ function ChatDrawer({
             {messages.map((message) => (
               <Card
                 className={cn(
-                  "max-w-[82%] shadow-none",
+                  "max-w-[82%]",
                   message.mine
                     ? "ml-auto border-primary bg-primary text-primary-foreground"
                     : "bg-card"
@@ -1445,7 +1304,7 @@ function ChatDrawer({
             ))}
           </div>
         </div>
-        <DrawerFooter className="border-t">
+        <DrawerFooter className="border-t border-border/40">
           <div className="flex gap-2">
             <Input
               className="h-11"
@@ -1469,10 +1328,12 @@ function ChatDrawer({
 }
 
 function SessionDetailDrawer({
+  onJoin,
   onOpenChange,
   open,
   session
 }: {
+  onJoin: (session: DemoSession) => void;
   onOpenChange: (open: boolean) => void;
   open: boolean;
   session: DemoSession | null;
@@ -1506,7 +1367,17 @@ function SessionDetailDrawer({
               </CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-2">
-              <Button type="button">Join</Button>
+              <Button
+                disabled={!session}
+                onClick={() => {
+                  if (session) {
+                    onJoin(session);
+                  }
+                }}
+                type="button"
+              >
+                Join
+              </Button>
               <Button type="button" variant="outline">
                 Reschedule
               </Button>
@@ -1577,6 +1448,66 @@ function PatientDetailDrawer({
   );
 }
 
+function DailyCallScreen({
+  onClose,
+  session
+}: {
+  onClose: () => void;
+  session: DemoSession | null;
+}) {
+  const dailyRoomUrl = process.env.NEXT_PUBLIC_DAILY_ROOM_URL;
+
+  if (!session) {
+    return null;
+  }
+
+  return (
+    <div className="valence-call-screen fixed inset-0 z-50 flex flex-col bg-background text-foreground">
+      <header className="flex items-center justify-between border-b border-border/30 px-5 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
+        <Button
+          aria-label="Close call"
+          onClick={onClose}
+          size="icon"
+          type="button"
+          variant="outline"
+        >
+          <ArrowLeft />
+        </Button>
+        <div className="min-w-0 px-3 text-center">
+          <p className="truncate font-semibold">{session.person}</p>
+          <p className="text-xs text-muted-foreground">
+            Daily.co room, {session.mode}
+          </p>
+        </div>
+        <Badge variant="secondary">{session.status}</Badge>
+      </header>
+      <div className="min-h-0 flex-1 p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+        {dailyRoomUrl ? (
+          <iframe
+            allow="camera; microphone; fullscreen; display-capture"
+            className="size-full rounded-[1.5rem] border border-border bg-card"
+            src={dailyRoomUrl}
+            title={`Daily.co call with ${session.person}`}
+          />
+        ) : (
+          <div className="grid size-full place-items-center rounded-[1.5rem] border border-border bg-card p-6 text-center">
+            <div className="max-w-xs">
+              <Badge variant="secondary">Daily.co preview</Badge>
+              <h2 className="mt-4 text-2xl font-semibold">
+                Video room ready
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Your secure session space will appear here when the room is
+                assigned.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function WorkspaceShell({
   activePage,
   children,
@@ -1603,7 +1534,7 @@ function WorkspaceShell({
       className="valence-app-shell min-h-dvh bg-background text-foreground"
       style={roleAccentStyle(role)}
     >
-      <header className="fixed left-[env(safe-area-inset-left)] right-[env(safe-area-inset-right)] top-0 z-30 border-b bg-background/88 px-5 pb-3 pt-[calc(env(safe-area-inset-top)+0.8rem)] backdrop-blur-xl">
+      <header className="fixed left-[env(safe-area-inset-left)] right-[env(safe-area-inset-right)] top-0 z-30 border-b border-border/30 bg-background/88 px-5 pb-3 pt-[calc(env(safe-area-inset-top)+0.8rem)] backdrop-blur-xl">
         <div className="mx-auto flex max-w-md items-center justify-between">
           <BrandLogo />
           <div className="flex items-center gap-2">
@@ -1624,7 +1555,7 @@ function WorkspaceShell({
         <div className="valence-screen-transition">{children}</div>
       </main>
       <nav className="fixed bottom-[calc(0.65rem+env(safe-area-inset-bottom))] left-[calc(0.75rem+env(safe-area-inset-left))] right-[calc(0.75rem+env(safe-area-inset-right))] z-30">
-        <div className="relative mx-auto grid max-w-md grid-cols-4 rounded-2xl border bg-card/95 p-1.5 shadow-lg backdrop-blur-xl">
+        <div className="relative mx-auto grid max-w-md grid-cols-4 rounded-2xl border border-border bg-card/95 p-1.5 backdrop-blur-xl">
           <span
             aria-hidden="true"
             className="absolute bottom-1.5 left-1.5 top-1.5 z-0 rounded-xl bg-primary/12 transition-transform duration-300 ease-out"
@@ -1663,294 +1594,6 @@ function WorkspaceShell({
         Reset demo
       </button>
     </div>
-  );
-}
-
-function SectionHeader({
-  eyebrow,
-  title,
-  description
-}: {
-  description: string;
-  eyebrow: string;
-  title: string;
-}) {
-  return (
-    <div className="mb-5">
-      <Badge variant="outline">{eyebrow}</Badge>
-      <h1 className="mt-3 text-3xl font-semibold leading-tight">{title}</h1>
-      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-        {description}
-      </p>
-    </div>
-  );
-}
-
-function HomePage({ role }: { role: UserRole }) {
-  return (
-    <section>
-      <SectionHeader
-        description="The rest of the app is local demo UI, so you can move freely and test the feel."
-        eyebrow="Demo"
-        title="This is the home page"
-      />
-      <Card>
-        <CardHeader>
-          <CardTitle>Welcome back</CardTitle>
-          <CardDescription>
-            {role === "therapist"
-              ? "Your therapist workspace is ready for sessions and patients."
-              : "Your patient workspace is ready for sessions and exercises."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3">
-          <Progress value={role === "therapist" ? 74 : 62} />
-          <div className="grid grid-cols-2 gap-3">
-            <Card className="shadow-none">
-              <CardContent className="p-4">
-                <p className="text-2xl font-semibold">
-                  {role === "therapist" ? "4" : "2"}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Upcoming sessions
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="shadow-none">
-              <CardContent className="p-4">
-                <p className="text-2xl font-semibold">
-                  {role === "therapist" ? "12" : "3"}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Active items
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </CardContent>
-      </Card>
-    </section>
-  );
-}
-
-function SessionsPage({
-  onSelectSession,
-  role
-}: {
-  onSelectSession: (session: DemoSession) => void;
-  role: UserRole;
-}) {
-  const sessions = role === "therapist" ? therapistSessions : demoSessions;
-
-  return (
-    <section>
-      <SectionHeader
-        description="Tap any card to open session details in a bottom drawer."
-        eyebrow="Sessions"
-        title="Upcoming sessions"
-      />
-      <div className="grid gap-3">
-        {sessions.map((session) => (
-          <Card
-            className="cursor-pointer transition-transform active:scale-[0.99]"
-            key={session.id}
-            onClick={() => onSelectSession(session)}
-          >
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <CardTitle className="text-xl">{session.person}</CardTitle>
-                  <CardDescription>
-                    {session.date}, {session.time}
-                  </CardDescription>
-                </div>
-                <Badge>{session.status}</Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="flex items-center justify-between pt-0 text-sm text-muted-foreground">
-              <span>{session.mode}</span>
-              <ChevronRight />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function ExercisesPage() {
-  return (
-    <section>
-      <SectionHeader
-        description="A patient-only area for simple guided practices."
-        eyebrow="Exercises"
-        title="Practice library"
-      />
-      <div className="grid gap-3">
-        {[
-          ["Breathing reset", "Six minutes to slow down before sleep.", 35],
-          ["Thought record", "Capture a thought and gently test it.", 62],
-          ["Grounding", "Use senses to return to the room.", 18]
-        ].map(([title, description, progress]) => (
-          <Card key={title}>
-            <CardHeader>
-              <CardTitle className="text-xl">{title}</CardTitle>
-              <CardDescription>{description}</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3">
-              <Progress value={Number(progress)} />
-              <Button type="button" variant="outline">
-                Open exercise
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function PatientsPage({
-  onSelectPatient
-}: {
-  onSelectPatient: (patient: DemoPatient) => void;
-}) {
-  const [query, setQuery] = useState("");
-  const filteredPatients = demoPatients.filter((patient) =>
-    `${patient.name} ${patient.focus}`
-      .toLowerCase()
-      .includes(query.trim().toLowerCase())
-  );
-
-  return (
-    <section>
-      <SectionHeader
-        description="Search patients and open details without leaving the list."
-        eyebrow="Patients"
-        title="Patient list"
-      />
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          className="h-12 pl-10"
-          onChange={(event) => setQuery(event.currentTarget.value)}
-          placeholder="Search by name or focus"
-          value={query}
-        />
-      </div>
-      <div className="grid gap-3">
-        {filteredPatients.map((patient) => (
-          <Card
-            className="cursor-pointer transition-transform active:scale-[0.99]"
-            key={patient.id}
-            onClick={() => onSelectPatient(patient)}
-          >
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <CardTitle className="text-xl">{patient.name}</CardTitle>
-                  <CardDescription>{patient.focus}</CardDescription>
-                </div>
-                <Badge variant={patient.risk === "Low" ? "secondary" : "outline"}>
-                  {patient.risk}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="grid gap-2 pt-0">
-              <Progress value={patient.progress} />
-              <p className="text-sm text-muted-foreground">
-                Last seen {patient.lastSeen}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function ProfilePage({
-  onEnablePushNotifications,
-  onReset,
-  onSignOut,
-  pushRegistration,
-  role,
-  versions
-}: {
-  onEnablePushNotifications: () => void;
-  onReset: () => void;
-  onSignOut: () => void;
-  pushRegistration: PushRegistrationState;
-  role: UserRole;
-  versions: VersionState;
-}) {
-  const pushCopy =
-    pushRegistration.status === "registered"
-      ? "This device is registered for notifications."
-      : pushRegistration.status === "denied"
-        ? "Notifications are disabled in system settings."
-        : pushRegistration.status === "unsupported"
-          ? "Push notifications are only available in the native app."
-          : "Enable local notification registration for the device.";
-
-  return (
-    <section>
-      <SectionHeader
-        description="Review demo settings, versions, and device permissions."
-        eyebrow="Profile"
-        title={`${roleContent[role].audience} profile`}
-      />
-      <div className="grid gap-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>Demo account</CardTitle>
-            <CardDescription>
-              Role, accent color, and onboarding are local to this device.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            <Badge>{roleContent[role].audience}</Badge>
-            <VersionBadge versions={versions} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell />
-              Notifications
-            </CardTitle>
-            <CardDescription>{pushCopy}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              disabled={pushRegistration.status === "registered"}
-              onClick={onEnablePushNotifications}
-              type="button"
-              variant="outline"
-            >
-              {pushRegistration.status === "registered" ? "Enabled" : "Enable"}
-            </Button>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Prototype controls</CardTitle>
-            <CardDescription>
-              Reset the first-run flow whenever you want to test another role.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-2">
-            <Button onClick={onReset} type="button" variant="outline">
-              Reset demo flow
-            </Button>
-            <Button onClick={onSignOut} type="button" variant="ghost">
-              <LogOut data-icon="inline-start" />
-              Sign out of Supabase
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    </section>
   );
 }
 
@@ -2025,6 +1668,7 @@ function ActivePage({
 export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const versions = useAppVersions();
+  const keyboardInset = useKeyboardInset();
   const activePage = useActivePage(page);
   const [flow, setFlow] = useDemoFlow();
   const [email, setEmail] = useState("");
@@ -2034,6 +1678,7 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
   const [messagesOpen, setMessagesOpen] = useState(false);
   const [selectedSession, setSelectedSession] = useState<DemoSession | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<DemoPatient | null>(null);
+  const [callSession, setCallSession] = useState<DemoSession | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
       body: "Hi, this is the local message drawer. Send anything to test the interaction.",
@@ -2087,6 +1732,14 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
 
     if (drawer === "session") {
       setSelectedSession(
+        role === "therapist"
+          ? previewTherapistSessions[0] ?? null
+          : previewPatientSessions[0] ?? null
+      );
+    }
+
+    if (drawer === "call") {
+      setCallSession(
         role === "therapist"
           ? previewTherapistSessions[0] ?? null
           : previewPatientSessions[0] ?? null
@@ -2181,6 +1834,8 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
       void App.addListener("appUrlOpen", async ({ url }) => {
         const user = await exchangeSessionFromUrl(url);
 
+        void Browser.close().catch(() => {});
+
         if (user && isMounted) {
           dispatchAuth({ type: "user-changed", user });
         }
@@ -2261,7 +1916,10 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
     }
 
     if (isNative && data.url) {
-      await AppLauncher.openUrl({ url: data.url });
+      await Browser.open({
+        presentationStyle: "fullscreen",
+        url: data.url
+      });
     }
   }
 
@@ -2297,6 +1955,18 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
   async function signOut() {
     await supabase?.auth.signOut();
     dispatchAuth({ type: "user-changed", user: null });
+    setStatus("Signed out.");
+    setError(null);
+    setMessagesOpen(false);
+    setSelectedPatient(null);
+    setSelectedSession(null);
+    setFlow((current) => ({
+      ...current,
+      carouselIndex: 0,
+      onboardingStep: 0,
+      stage: "auth"
+    }));
+    navigateWithinApp("home");
   }
 
   async function applyNativeUpdateOnNextLaunch() {
@@ -2529,6 +2199,7 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
         />
       </WorkspaceShell>
       <ChatDrawer
+        keyboardInset={keyboardInset}
         messages={chatMessages}
         onOpenChange={setMessagesOpen}
         onSend={sendChatMessage}
@@ -2542,6 +2213,10 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
           }
         }}
         open={Boolean(selectedSession)}
+        onJoin={(session) => {
+          setSelectedSession(null);
+          setCallSession(session);
+        }}
         session={selectedSession}
       />
       <PatientDetailDrawer
@@ -2552,6 +2227,10 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
         }}
         open={Boolean(selectedPatient)}
         patient={selectedPatient}
+      />
+      <DailyCallScreen
+        onClose={() => setCallSession(null)}
+        session={callSession}
       />
       {updateDrawer}
     </>

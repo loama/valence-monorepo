@@ -1,35 +1,35 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #111827;
-  --card: #ffffff;
-  --card-foreground: #111827;
-  --primary: var(--role-accent, #7357f6);
-  --primary-foreground: #ffffff;
-  --secondary: #eef2f7;
-  --secondary-foreground: #334155;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
-  --accent: #f3f0ff;
-  --accent-foreground: #312e81;
-  --border: #e2e8f0;
-  --ring: var(--role-accent, #7357f6);
-  --patient-accent: #7357f6;
-  --therapist-accent: #2563eb;
-  --valence-purple: #7357f6;
-  --valence-purple-deep: #5b3ee5;
-  --valence-purple-soft: #ede9fe;
-  --valence-orange: #ff7a2f;
-  --valence-yellow: #f2d20c;
-  --valence-lime: #7357f6;
-  --valence-pink: #7357f6;
-  --valence-teal: #f8fafc;
-  --valence-teal-deep: #111827;
-  --valence-teal-soft: #eef2f7;
-  --valence-ink: #111827;
-  --valence-cream: #ffffff;
-  --radius: 1.25rem;
+  --background: #fbf4e9;
+  --foreground: #07164a;
+  --card: #fffaf2;
+  --card-foreground: #07164a;
+  --primary: var(--role-accent, #8bcf52);
+  --primary-foreground: #07164a;
+  --secondary: #f5eadb;
+  --secondary-foreground: #24304f;
+  --muted: #f3e8d9;
+  --muted-foreground: #6e6f7e;
+  --accent: #fbe1ea;
+  --accent-foreground: #07164a;
+  --border: #dfd1bf;
+  --ring: var(--role-accent, #8bcf52);
+  --patient-accent: #8bcf52;
+  --therapist-accent: #123b8f;
+  --valence-purple: #07164a;
+  --valence-purple-deep: #07164a;
+  --valence-purple-soft: #e5f6cf;
+  --valence-orange: #ffc83d;
+  --valence-yellow: #ffd943;
+  --valence-lime: #8bcf52;
+  --valence-pink: #ee78aa;
+  --valence-teal: #fbf4e9;
+  --valence-teal-deep: #07164a;
+  --valence-teal-soft: #f5eadb;
+  --valence-ink: #07164a;
+  --valence-cream: #fffaf2;
+  --radius: 1.2rem;
 }
 
 @theme inline {
@@ -104,13 +104,25 @@ button:not(:disabled),
   align-items: center;
   color: var(--foreground);
   display: inline-flex;
-  font-weight: 900;
+  font-weight: 950;
   letter-spacing: 0;
   line-height: 0.9;
 }
 
+.valence-loop {
+  border: 0.35rem solid var(--valence-lime);
+  border-bottom-color: transparent;
+  border-left-color: var(--valence-lime);
+  border-radius: 999px 999px 999px 0;
+  display: inline-block;
+  height: 1.35rem;
+  margin-right: 0.08rem;
+  transform: rotate(-38deg) translateY(0.04rem);
+  width: 1.35rem;
+}
+
 .valence-spark {
-  background: var(--role-accent, var(--valence-purple));
+  background: var(--valence-pink);
   clip-path: polygon(
     50% 0%,
     61% 33%,
@@ -122,27 +134,21 @@ button:not(:disabled),
     39% 33%
   );
   display: inline-block;
-  filter: drop-shadow(0 8px 14px rgba(115, 87, 246, 0.22));
 }
 
 .valence-panel {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  box-shadow:
-    0 26px 70px rgba(15, 23, 42, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  background: var(--card);
+  border: 1px solid var(--border);
 }
 
 .valence-purple-surface {
   background: var(--role-accent, var(--valence-purple));
-  box-shadow: 0 24px 44px rgba(115, 87, 246, 0.18);
 }
 
 .valence-brand-button {
   background: var(--role-accent, var(--valence-purple));
   border: 0;
   color: var(--primary-foreground);
-  box-shadow: 0 18px 34px rgba(115, 87, 246, 0.18);
 }
 
 .valence-brand-button:hover {
@@ -198,7 +204,6 @@ button:not(:disabled),
 
 .valence-mascot-purple {
   background: var(--valence-pink);
-  box-shadow: 0 18px 24px rgba(255, 79, 163, 0.18);
 }
 
 .valence-mascot-yellow {
@@ -227,16 +232,21 @@ button:not(:disabled),
 }
 
 .valence-app-shell {
-  --primary: var(--role-accent, #7357f6);
-  --ring: var(--role-accent, #7357f6);
-  --accent: var(--role-accent-soft, #ede9fe);
+  --primary: var(--role-accent, #8bcf52);
+  --ring: var(--role-accent, #8bcf52);
+  --accent: var(--role-accent-soft, #e5f6cf);
   background:
-    radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--role-accent, #7357f6) 10%, transparent) 0, transparent 28rem),
+    radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--role-accent, #8bcf52) 12%, transparent) 0, transparent 28rem),
+    radial-gradient(circle at 92% 18%, rgba(238, 120, 170, 0.12) 0, transparent 18rem),
     var(--background);
 }
 
 .valence-screen-transition {
   animation: valence-card-enter 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.valence-call-screen {
+  animation: valence-call-enter 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .valence-safe-screen {
@@ -286,6 +296,18 @@ button:not(:disabled),
   }
 }
 
+@keyframes valence-call-enter {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 @keyframes valence-spin {
   to {
     transform: rotate(360deg);
@@ -294,6 +316,7 @@ button:not(:disabled),
 
 @media (prefers-reduced-motion: reduce) {
   .valence-auth-scene,
+  .valence-call-screen,
   .valence-card-enter,
   .valence-spinner {
     animation: none;

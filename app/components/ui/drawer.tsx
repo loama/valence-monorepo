@@ -56,7 +56,7 @@ function DrawerContent({
       <DrawerOverlay />
       <DrawerPrimitive.Content
         className={cn(
-          "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-lg border border-border bg-card pb-[env(safe-area-inset-bottom)] shadow-2xl outline-none",
+          "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-lg border border-border bg-card pb-[env(safe-area-inset-bottom)] outline-none",
           className
         )}
         data-slot="drawer-content"

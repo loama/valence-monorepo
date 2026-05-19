@@ -34,7 +34,7 @@ export function TherapistWelcomeCarousel({
         <Card className="min-h-[28rem] overflow-hidden">
           <CardContent className="flex h-full min-h-[28rem] flex-col justify-between p-6">
             <div className="flex justify-center pt-10">
-              <div className="grid size-32 place-items-center rounded-[2rem] bg-[var(--role-accent-soft)] text-[var(--role-accent)] shadow-sm">
+              <div className="grid size-32 place-items-center rounded-[2rem] bg-[var(--role-accent-soft)] text-[var(--role-accent)]">
                 <Stethoscope className="size-16" />
               </div>
             </div>
