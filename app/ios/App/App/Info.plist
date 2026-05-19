@@ -24,11 +24,11 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>com.valencedev.platform</string>
+			<string>com.valencedev.app</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>valence</string>
-				<string>com.valencedev.platform</string>
+				<string>com.valencedev.app</string>
 			</array>
 		</dict>
 	</array>
