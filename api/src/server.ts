@@ -663,11 +663,11 @@ function getKapsoWebhookAuth(request: express.Request) {
   const signature = request.header("x-webhook-signature");
 
   if (signature) {
-    if (verifyKapsoSignature(request, signature, process.env.KAPSO_PRODUCTION_WEBHOOK_SECRET)) {
+    if (verifyKapsoSignature(request, signature, getKapsoProductionWebhookSecret())) {
       return { environment: "production" as const, method: "signature" };
     }
 
-    if (verifyKapsoSignature(request, signature, process.env.KAPSO_DEVELOPMENT_WEBHOOK_SECRET)) {
+    if (verifyKapsoSignature(request, signature, getKapsoDevelopmentWebhookSecret())) {
       return { environment: "development" as const, method: "signature" };
     }
 
@@ -679,7 +679,24 @@ function getKapsoWebhookAuth(request: express.Request) {
     }
   }
 
+  console.warn("kapso whatsapp auth failed", {
+    hasApiKey: Boolean(key),
+    hasDevelopmentSecret: Boolean(getKapsoDevelopmentWebhookSecret()),
+    hasProductionSecret: Boolean(getKapsoProductionWebhookSecret()),
+    hasSharedSecret: Boolean(process.env.KAPSO_WEBHOOK_SECRET),
+    hasSignature: Boolean(signature),
+    path: request.path
+  });
+
   return null;
+}
+
+function getKapsoProductionWebhookSecret() {
+  return process.env.KAPSO_PRODUCTION_WEBHOOK_SECRET ?? process.env.KAPSO_PROD_WEBHOOK_SECRET;
+}
+
+function getKapsoDevelopmentWebhookSecret() {
+  return process.env.KAPSO_DEVELOPMENT_WEBHOOK_SECRET ?? process.env.KAPSO_DEV_WEBHOOK_SECRET;
 }
 
 function verifyKapsoSignature(
@@ -692,10 +709,16 @@ function verifyKapsoSignature(
   }
 
   const rawBody = (request as typeof request & { rawBody?: Buffer }).rawBody;
-  const signedPayload = rawBody ?? Buffer.from(JSON.stringify(request.body));
-  const expected = createHmac("sha256", secret).update(signedPayload).digest("hex");
+  const signedPayloads = [
+    Buffer.from(JSON.stringify(request.body)),
+    ...(rawBody ? [rawBody] : [])
+  ];
 
-  return safeEqualHex(signature, expected);
+  return signedPayloads.some((signedPayload) => {
+    const expected = createHmac("sha256", secret).update(signedPayload).digest("hex");
+
+    return safeEqualHex(signature, expected);
+  });
 }
 
 function safeEqualHex(received: string, expected: string) {
