@@ -65,7 +65,7 @@ export function OnboardingCarousel({
 
   return (
     <>
-      <div className="fixed left-1/2 top-0 z-20 w-full max-w-md -translate-x-1/2 bg-background/85 px-5 pt-[calc(env(safe-area-inset-top)+1rem)] backdrop-blur-md">
+      <div className="fixed left-1/2 top-0 z-20 w-full max-w-md -translate-x-1/2 border-b border-border/20 bg-background/95 px-5 pb-3 pt-[calc(env(safe-area-inset-top)+1rem)] backdrop-blur-md">
         <div className="flex items-center justify-between">
           <Button onClick={onBack} size="icon" type="button" variant="ghost">
             <ArrowLeft />
@@ -76,7 +76,7 @@ export function OnboardingCarousel({
           </Badge>
         </div>
       </div>
-      <div className="flex flex-1 flex-col gap-5 overflow-hidden pb-24 pt-24">
+      <div className="flex flex-1 flex-col gap-5 overflow-hidden pb-28 pt-28">
         <div>
           <Badge variant="outline">{audience} onboarding</Badge>
           <h1 className="mt-4 text-3xl font-semibold leading-tight">
@@ -125,7 +125,7 @@ export function OnboardingCarousel({
           </div>
         </div>
       </div>
-      <div className="fixed bottom-0 left-1/2 z-20 w-full max-w-md -translate-x-1/2 bg-background/85 px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 backdrop-blur-md">
+      <div className="fixed bottom-0 left-1/2 z-20 w-full max-w-md -translate-x-1/2 border-t border-border/20 bg-background/95 px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 backdrop-blur-md">
         <div className="grid grid-cols-[1fr_2fr] gap-3">
           <Button onClick={onSkipToApp} type="button" variant="outline">
             Skip

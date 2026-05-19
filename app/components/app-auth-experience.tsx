@@ -1604,6 +1604,7 @@ function MessagesPanel({
   const [draft, setDraft] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const keyboardLift = keyboardInset > 0 ? Math.max(0, keyboardInset - 24) : 0;
 
   useEffect(() => {
     if (!open) {
@@ -1665,8 +1666,8 @@ function MessagesPanel({
           className="absolute left-1/2 w-full max-w-md -translate-x-1/2 overflow-y-auto px-5 transition-[bottom] duration-200 ease-out"
           ref={scrollRef}
           style={{
-            bottom: `calc(6.5rem + env(safe-area-inset-bottom) + ${keyboardInset}px)`,
-            top: "calc(env(safe-area-inset-top) + 4.8rem)"
+            bottom: `calc(6rem + env(safe-area-inset-bottom) + ${keyboardLift}px)`,
+            top: "calc(env(safe-area-inset-top) + 4.3rem)"
           }}
         >
           <div className="flex min-h-full flex-col gap-3 pt-[80vh]">
@@ -1689,7 +1690,7 @@ function MessagesPanel({
           className="fixed left-[env(safe-area-inset-left)] right-[env(safe-area-inset-right)] z-50 px-4 transition-transform duration-200 ease-out"
           style={{
             bottom: "calc(env(safe-area-inset-bottom) + 0.75rem)",
-            transform: `translateY(-${keyboardInset}px)`
+            transform: `translateY(-${keyboardLift}px)`
           }}
         >
           <div className="mx-auto flex max-w-md gap-2 rounded-[1.75rem] border border-border bg-card p-2">
