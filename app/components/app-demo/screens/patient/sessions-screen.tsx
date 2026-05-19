@@ -29,7 +29,7 @@ export function PatientSessionsScreen({
         title="Upcoming sessions"
       />
       <Button className="mb-4 w-full" onClick={onBookSession} type="button">
-        Book demo session
+        Book session
       </Button>
       <div className="grid gap-3">
         {sessions.map((session) => (

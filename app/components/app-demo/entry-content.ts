@@ -29,7 +29,7 @@ export const patientWelcomeSlides: WelcomeSlide[] = [
   },
   {
     title: "Message without losing context",
-    body: "See how private chat will look once backend messages are live."
+    body: "Keep the conversation with your care team close to the session."
   }
 ];
 
@@ -55,7 +55,7 @@ export const therapistWelcomeSlides: WelcomeSlide[] = [
 export const patientOnboardingSteps: OnboardingStep[] = [
   {
     title: "About you",
-    description: "A few basics help shape your demo experience.",
+    description: "A few basics help shape your care experience.",
     fields: [
       { label: "Preferred name", placeholder: "Olivia", type: "input" },
       {
@@ -116,7 +116,7 @@ export const patientOnboardingSteps: OnboardingStep[] = [
 export const therapistOnboardingSteps: OnboardingStep[] = [
   {
     title: "Practice profile",
-    description: "Set the name and modality shown in the demo.",
+    description: "Set the name and modality shown in your workspace.",
     fields: [
       { label: "Display name", placeholder: "Dr. Emma Lin", type: "input" },
       {
@@ -140,7 +140,7 @@ export const therapistOnboardingSteps: OnboardingStep[] = [
   },
   {
     title: "Availability",
-    description: "Make the schedule feel realistic for the demo.",
+    description: "Make the schedule match how you work with patients.",
     fields: [
       { label: "Clinic hours", placeholder: "Mon to Thu, 10 AM to 6 PM", type: "input" },
       {

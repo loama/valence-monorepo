@@ -15,9 +15,9 @@ export function TherapistHomeScreen() {
   return (
     <section>
       <SectionHeader
-        description="The rest of the app is local demo UI, so you can move freely and test the feel."
-        eyebrow="Therapist demo"
-        title="This is the home page"
+        description="Review your day, stay close to patient context, and move into sessions quickly."
+        eyebrow="Psychologist"
+        title="Home"
       />
       <div className="grid gap-3">
         <Card>
@@ -61,7 +61,7 @@ export function TherapistHomeScreen() {
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
             <Badge variant="secondary">Clinical flow</Badge>
-            <Badge variant="outline">Local demo</Badge>
+            <Badge variant="outline">Today</Badge>
           </CardContent>
         </Card>
       </div>

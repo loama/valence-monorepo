@@ -43,14 +43,14 @@ export const pageItems: Record<PageKey, PageItem> = {
     page: "patients"
   },
   messages: {
-    description: "Local message demo",
+    description: "Care team messages",
     href: `${appRouteBasePath}/messages/`,
     icon: MessageCircle,
     label: "Messages",
     page: "messages"
   },
   profile: {
-    description: "Profile and demo settings",
+    description: "Profile and settings",
     href: `${appRouteBasePath}/profile/`,
     icon: UserRound,
     label: "Profile",

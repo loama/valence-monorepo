@@ -48,17 +48,16 @@ export function PatientProfileScreen({
   return (
     <section>
       <SectionHeader
-        description="Review demo settings, versions, and device permissions."
+        description="Review account settings, app version, and device permissions."
         eyebrow="Profile"
         title="Patient profile"
       />
       <div className="grid gap-3">
         <Card>
           <CardHeader>
-            <CardTitle>Demo account</CardTitle>
+            <CardTitle>Account</CardTitle>
             <CardDescription>
-              Patient onboarding, exercises, and accent color are local to this
-              device.
+              Patient onboarding, exercises, and your care preferences live here.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
@@ -87,14 +86,14 @@ export function PatientProfileScreen({
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Prototype controls</CardTitle>
+            <CardTitle>Account controls</CardTitle>
             <CardDescription>
-              Reset the first-run flow whenever you want to test another role.
+              Restart the first-run flow when you need to update your role.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-2">
             <Button onClick={onReset} type="button" variant="outline">
-              Reset demo flow
+              Reset onboarding
             </Button>
             <Button onClick={onSignOut} type="button" variant="ghost">
               <LogOut data-icon="inline-start" />
