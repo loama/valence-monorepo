@@ -1,9 +1,9 @@
 import { ChevronRight } from "lucide-react";
 
-import { patientSessions } from "@/components/app-demo/data";
 import { SectionHeader } from "@/components/app-demo/section-header";
 import type { DemoSession } from "@/components/app-demo/types";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -13,9 +13,13 @@ import {
 } from "@/components/ui/card";
 
 export function PatientSessionsScreen({
-  onSelectSession
+  onBookSession,
+  onSelectSession,
+  sessions
 }: {
+  onBookSession: () => void;
   onSelectSession: (session: DemoSession) => void;
+  sessions: DemoSession[];
 }) {
   return (
     <section>
@@ -24,8 +28,11 @@ export function PatientSessionsScreen({
         eyebrow="Sessions"
         title="Upcoming sessions"
       />
+      <Button className="mb-4 w-full" onClick={onBookSession} type="button">
+        Book demo session
+      </Button>
       <div className="grid gap-3">
-        {patientSessions.map((session) => (
+        {sessions.map((session) => (
           <Card
             className="cursor-pointer transition-transform active:scale-[0.99]"
             key={session.id}

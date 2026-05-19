@@ -1,7 +1,6 @@
 import { Search } from "lucide-react";
 import { useState } from "react";
 
-import { demoPatients } from "@/components/app-demo/data";
 import { SectionHeader } from "@/components/app-demo/section-header";
 import type { DemoPatient } from "@/components/app-demo/types";
 import { Badge } from "@/components/ui/badge";
@@ -16,12 +15,14 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 
 export function TherapistPatientsScreen({
-  onSelectPatient
+  onSelectPatient,
+  patients
 }: {
   onSelectPatient: (patient: DemoPatient) => void;
+  patients: DemoPatient[];
 }) {
   const [query, setQuery] = useState("");
-  const filteredPatients = demoPatients.filter((patient) =>
+  const filteredPatients = patients.filter((patient) =>
     `${patient.name} ${patient.focus}`
       .toLowerCase()
       .includes(query.trim().toLowerCase())

@@ -2,8 +2,10 @@
 
 import {
   useEffect,
+  useCallback,
   useMemo,
   useReducer,
+  useRef,
   useState,
   useSyncExternalStore,
   type Dispatch,
@@ -13,16 +15,16 @@ import {
   type SetStateAction
 } from "react";
 import { App } from "@capacitor/app";
-import { Browser } from "@capacitor/browser";
 import { Capacitor, type PluginListenerHandle } from "@capacitor/core";
 import { Keyboard } from "@capacitor/keyboard";
 import { PushNotifications } from "@capacitor/push-notifications";
+import { InAppBrowser } from "@capgo/inappbrowser";
 import {
   CapacitorUpdater,
   type BundleInfo,
   type LatestVersion
 } from "@capgo/capacitor-updater";
-import type { Provider, User } from "@supabase/supabase-js";
+import type { Provider, SupabaseClient, User } from "@supabase/supabase-js";
 import {
   Apple,
   ArrowLeft,
@@ -33,6 +35,7 @@ import {
   Send,
   Sparkles,
   Stethoscope,
+  X,
   type LucideIcon
 } from "lucide-react";
 import packageJson from "@/package.json";
@@ -157,6 +160,23 @@ type ChatMessage = {
   id: string;
   mine: boolean;
 };
+
+type LiveDemoData = {
+  activeConversationId: string | null;
+  patients: DemoPatient[];
+  patientSessions: DemoSession[];
+  therapistSessions: DemoSession[];
+};
+
+const initialLiveDemoData: LiveDemoData = {
+  activeConversationId: null,
+  patients: previewPatients,
+  patientSessions: previewPatientSessions,
+  therapistSessions: previewTherapistSessions
+};
+
+const demoPatientUserId = "10000000-0000-4000-8000-000000000001";
+const demoProviderUserId = "10000000-0000-4000-8000-000000000002";
 
 const fallbackInstalledVersion = packageJson.version;
 const appReleaseNumber = Number(releaseVersion.version);
@@ -749,6 +769,48 @@ function getRedirectTo() {
   return `${window.location.origin}${appRouteBasePath}`;
 }
 
+async function exchangeSessionFromUrl(
+  supabase: SupabaseClient | null,
+  urlString: string
+) {
+  if (!supabase) {
+    return null;
+  }
+
+  const url = new URL(urlString);
+  const code = url.searchParams.get("code");
+
+  if (code) {
+    const { data, error: exchangeError } =
+      await supabase.auth.exchangeCodeForSession(code);
+
+    if (exchangeError) {
+      return null;
+    }
+
+    return data.session?.user ?? null;
+  }
+
+  const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
+  const accessToken = hashParams.get("access_token");
+  const refreshToken = hashParams.get("refresh_token");
+
+  if (!accessToken || !refreshToken) {
+    return null;
+  }
+
+  const { data, error: sessionError } = await supabase.auth.setSession({
+    access_token: accessToken,
+    refresh_token: refreshToken
+  });
+
+  if (sessionError) {
+    return null;
+  }
+
+  return data.session?.user ?? null;
+}
+
 function useAppVersions(): VersionState {
   const [versions, setVersions] = useState<VersionState>({
     installedVersion: fallbackInstalledVersion,
@@ -874,13 +936,290 @@ function useKeyboardInset() {
   return keyboardInset;
 }
 
+function formatSessionDate(startsAt: string | null | undefined) {
+  if (!startsAt) {
+    return "Scheduled";
+  }
+
+  const date = new Date(startsAt);
+  const today = new Date();
+  const tomorrow = new Date();
+  tomorrow.setDate(today.getDate() + 1);
+
+  if (date.toDateString() === today.toDateString()) {
+    return "Today";
+  }
+
+  if (date.toDateString() === tomorrow.toDateString()) {
+    return "Tomorrow";
+  }
+
+  return date.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short"
+  });
+}
+
+function formatSessionTime(startsAt: string | null | undefined) {
+  if (!startsAt) {
+    return "Time TBD";
+  }
+
+  return new Date(startsAt).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit"
+  });
+}
+
+function formatModality(modality: string | null | undefined) {
+  if (modality === "in_person") {
+    return "In person";
+  }
+
+  if (modality === "hybrid") {
+    return "Hybrid";
+  }
+
+  return "Video";
+}
+
+function bindLiveDemoDataChannel({
+  client,
+  loadDemoData,
+  onAppVersionReleased
+}: {
+  client: SupabaseClient;
+  loadDemoData: () => void;
+  onAppVersionReleased: () => void;
+}) {
+  const channel = client
+    .channel("valence-live-demo")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "appointments" },
+      loadDemoData
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "therapist_connection_requests" },
+      loadDemoData
+    )
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "app_versions" },
+      onAppVersionReleased
+    )
+    .subscribe();
+
+  return () => {
+    void client.removeChannel(channel);
+  };
+}
+
+function bindMessagesChannel({
+  client,
+  conversationId,
+  loadMessages
+}: {
+  client: SupabaseClient;
+  conversationId: string;
+  loadMessages: () => void;
+}) {
+  const channel = client
+    .channel(`valence-messages-${conversationId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        filter: `conversation_id=eq.${conversationId}`,
+        schema: "public",
+        table: "messages"
+      },
+      loadMessages
+    )
+    .subscribe();
+
+  return () => {
+    void client.removeChannel(channel);
+  };
+}
+
+function useLiveDemoData(
+  supabase: SupabaseClient | null,
+  role: UserRole,
+  onAppVersionReleased: () => void
+) {
+  const [data, setData] = useState<LiveDemoData>(initialLiveDemoData);
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      body: "Hi, this is the live message panel. Send anything to test the interaction.",
+      id: "seed",
+      mine: false
+    }
+  ]);
+
+  useEffect(() => {
+    if (!supabase) {
+      return () => {};
+    }
+
+    const client = supabase;
+    let isMounted = true;
+
+    async function loadDemoData() {
+      const [
+        appointmentsResult,
+        patientsResult,
+        providersResult,
+        conversationsResult
+      ] = await Promise.all([
+        client
+          .from("appointments")
+          .select("id, patient_id, provider_id, starts_at, status, modality, notes, is_demo")
+          .eq("is_demo", true)
+          .order("starts_at", { ascending: true }),
+        client
+          .from("patients")
+          .select("id, preferred_name, care_goals, risk_level, is_demo")
+          .eq("is_demo", true),
+        client
+          .from("providers")
+          .select("id, display_name, is_demo")
+          .eq("is_demo", true),
+        client
+          .from("conversations")
+          .select("id, title, is_demo")
+          .eq("is_demo", true)
+          .limit(1)
+      ]);
+
+      if (!isMounted || appointmentsResult.error) {
+        return;
+      }
+
+      const patientNameById = new Map<string, string>();
+      const providerNameById = new Map<string, string>();
+
+      for (const patient of patientsResult.data ?? []) {
+        patientNameById.set(patient.id, patient.preferred_name);
+      }
+
+      for (const provider of providersResult.data ?? []) {
+        providerNameById.set(provider.id, provider.display_name);
+      }
+
+      const liveSessions = (appointmentsResult.data ?? []).map(
+        (appointment): DemoSession => ({
+          date: formatSessionDate(appointment.starts_at),
+          id: appointment.id,
+          mode: formatModality(appointment.modality),
+          notes: appointment.notes ?? "No prep notes yet.",
+          person:
+            role === "therapist"
+              ? patientNameById.get(appointment.patient_id) ?? "Patient"
+              : providerNameById.get(appointment.provider_id) ?? "Provider",
+          status:
+            typeof appointment.status === "string"
+              ? appointment.status.replace(/^./, (letter) =>
+                  letter.toUpperCase()
+                )
+              : "Confirmed",
+          time: formatSessionTime(appointment.starts_at)
+        })
+      );
+
+      const livePatients = (patientsResult.data ?? []).map(
+        (patient, index): DemoPatient => ({
+          focus: Array.isArray(patient.care_goals)
+            ? patient.care_goals.join(", ")
+            : "Care goals",
+          id: patient.id,
+          lastSeen: index === 0 ? "Today" : "This week",
+          name: patient.preferred_name,
+          progress: Math.max(35, 78 - index * 12),
+          risk: patient.risk_level === "medium" ? "Medium" : "Low"
+        })
+      );
+
+      setData({
+        activeConversationId: conversationsResult.data?.[0]?.id ?? null,
+        patients: livePatients.length > 0 ? livePatients : previewPatients,
+        patientSessions:
+          liveSessions.length > 0 ? liveSessions : previewPatientSessions,
+        therapistSessions:
+          liveSessions.length > 0 ? liveSessions : previewTherapistSessions
+      });
+    }
+
+    void loadDemoData();
+
+    const cleanupChannel = bindLiveDemoDataChannel({
+      client,
+      loadDemoData: () => void loadDemoData(),
+      onAppVersionReleased
+    });
+
+    return () => {
+      isMounted = false;
+      cleanupChannel();
+    };
+  }, [onAppVersionReleased, role, supabase]);
+
+  useEffect(() => {
+    if (!supabase || !data.activeConversationId) {
+      return () => {};
+    }
+
+    const client = supabase;
+    let isMounted = true;
+
+    async function loadMessages() {
+      const { data: rows, error } = await client
+        .from("messages")
+        .select("id, sender_user_id, body, created_at")
+        .eq("conversation_id", data.activeConversationId)
+        .order("created_at", { ascending: true });
+
+      if (!isMounted || error || !rows) {
+        return;
+      }
+
+      setMessages(
+        rows.map((message) => ({
+          body: message.body,
+          id: message.id,
+          mine:
+            message.sender_user_id ===
+            (role === "therapist" ? demoProviderUserId : demoPatientUserId)
+        }))
+      );
+    }
+
+    void loadMessages();
+
+    const cleanupChannel = bindMessagesChannel({
+      client,
+      conversationId: data.activeConversationId,
+      loadMessages: () => void loadMessages()
+    });
+
+    return () => {
+      isMounted = false;
+      cleanupChannel();
+    };
+  }, [data.activeConversationId, role, supabase]);
+
+  return { data, messages, setMessages };
+}
+
 function roleAccentStyle(role: UserRole | null) {
   const roleKey = role ?? "patient";
   const content = roleContent[roleKey];
 
   return {
     "--role-accent": content.accent,
-    "--role-accent-soft": content.accentSoft
+    "--role-accent-soft": content.accentSoft,
+    "--primary-foreground": roleKey === "therapist" ? "#ffffff" : "#07164a"
   } as CSSProperties;
 }
 
@@ -1211,6 +1550,8 @@ function OnboardingScreen({
           onBack={onBack}
           onNext={onNext}
           onSkipToApp={onSkipToApp}
+          onStepBack={onBack}
+          onStepForward={onNext}
           stepIndex={flow.onboardingStep}
         />
       ) : (
@@ -1219,6 +1560,8 @@ function OnboardingScreen({
           onBack={onBack}
           onNext={onNext}
           onSkipToApp={onSkipToApp}
+          onStepBack={onBack}
+          onStepForward={onNext}
           stepIndex={flow.onboardingStep}
         />
       )}
@@ -1243,22 +1586,36 @@ function SplashScreen({ versions }: { versions: VersionState }) {
   );
 }
 
-function ChatDrawer({
+function MessagesPanel({
   keyboardInset,
   messages,
-  onOpenChange,
+  onClose,
   onSend,
   open,
   role
 }: {
   keyboardInset: number;
   messages: ChatMessage[];
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
   onSend: (body: string) => void;
   open: boolean;
   role: UserRole;
 }) {
   const [draft, setDraft] = useState("");
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    window.setTimeout(() => {
+      scrollRef.current?.scrollTo({
+        behavior: "smooth",
+        top: scrollRef.current.scrollHeight
+      });
+    }, 80);
+  }, [messages.length, open]);
 
   function sendMessage() {
     const body = draft.trim();
@@ -1271,43 +1628,68 @@ function ChatDrawer({
     setDraft("");
   }
 
+  if (!open) {
+    return null;
+  }
+
   return (
-    <Drawer onOpenChange={onOpenChange} open={open} shouldScaleBackground={false}>
-      <DrawerContent
-        className="mx-auto flex h-[86dvh] max-w-md flex-col rounded-t-[1.75rem] transition-transform duration-200 ease-out"
-        style={{
-          transform: `translateY(-${keyboardInset}px)`
-        }}
-      >
-        <DrawerHeader className="text-left">
-          <DrawerTitle>Messages</DrawerTitle>
-          <DrawerDescription>
-            Local chat demo for the {roleContent[role].audience.toLowerCase()} experience.
-          </DrawerDescription>
-        </DrawerHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto px-4">
-          <div className="flex flex-col gap-3 pb-4">
+    <div
+      className="fixed inset-0 z-50 bg-background text-foreground"
+      style={roleAccentStyle(role)}
+    >
+      <div className="mx-auto flex h-dvh max-w-md flex-col">
+        <header className="shrink-0 border-b border-border/30 bg-background/95 px-5 pb-3 pt-[calc(env(safe-area-inset-top)+0.8rem)] backdrop-blur-xl">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="font-semibold leading-tight">Messages</p>
+              <p className="text-xs text-muted-foreground">
+                {roleContent[role].audience} care chat
+              </p>
+            </div>
+            <Button
+              aria-label="Close messages"
+              onClick={onClose}
+              size="icon"
+              type="button"
+              variant="outline"
+            >
+              <X />
+            </Button>
+          </div>
+        </header>
+        <div
+          className="min-h-0 flex-1 overflow-y-auto px-5 transition-[padding-bottom] duration-200 ease-out"
+          ref={scrollRef}
+          style={{
+            paddingBottom: `calc(6.5rem + env(safe-area-inset-bottom) + ${keyboardInset}px)`
+          }}
+        >
+          <div className="flex min-h-full flex-col gap-3 pt-[80vh]">
             {messages.map((message) => (
-              <Card
+              <div
                 className={cn(
-                  "max-w-[82%]",
+                  "max-w-[82%] rounded-2xl border px-3 py-2 text-sm leading-6",
                   message.mine
                     ? "ml-auto border-primary bg-primary text-primary-foreground"
-                    : "bg-card"
+                    : "border-border bg-card text-card-foreground"
                 )}
                 key={message.id}
               >
-                <CardContent className="p-3 text-sm leading-6">
-                  {message.body}
-                </CardContent>
-              </Card>
+                {message.body}
+              </div>
             ))}
           </div>
         </div>
-        <DrawerFooter className="border-t border-border/40">
-          <div className="flex gap-2">
+        <footer
+          className="fixed left-[env(safe-area-inset-left)] right-[env(safe-area-inset-right)] z-50 px-4 transition-transform duration-200 ease-out"
+          style={{
+            bottom: "calc(env(safe-area-inset-bottom) + 0.75rem)",
+            transform: `translateY(-${keyboardInset}px)`
+          }}
+        >
+          <div className="mx-auto flex max-w-md gap-2 rounded-[1.75rem] border border-border bg-card p-2">
             <Input
-              className="h-11"
+              className="h-11 flex-1 rounded-[1.25rem]"
               onChange={(event) => setDraft(event.currentTarget.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
@@ -1321,9 +1703,9 @@ function ChatDrawer({
               <Send />
             </Button>
           </div>
-        </DrawerFooter>
-      </DrawerContent>
-    </Drawer>
+        </footer>
+      </div>
+    </div>
   );
 }
 
@@ -1455,7 +1837,58 @@ function DailyCallScreen({
   onClose: () => void;
   session: DemoSession | null;
 }) {
-  const dailyRoomUrl = process.env.NEXT_PUBLIC_DAILY_ROOM_URL;
+  const fallbackDailyRoomUrl = process.env.NEXT_PUBLIC_DAILY_ROOM_URL;
+  const apiUrl = process.env.NEXT_PUBLIC_VALENCE_API_URL;
+  const [dailyRoomUrl, setDailyRoomUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadRoom() {
+      if (!session) {
+        setDailyRoomUrl(null);
+        return;
+      }
+
+      if (!apiUrl) {
+        setDailyRoomUrl(fallbackDailyRoomUrl ?? null);
+        return;
+      }
+
+      try {
+        const response = await fetch(`${apiUrl.replace(/\/$/, "")}/daily/rooms`, {
+          body: JSON.stringify({
+            appointmentId: session.id,
+            displayName: session.person
+          }),
+          headers: {
+            "Content-Type": "application/json"
+          },
+          method: "POST"
+        });
+
+        if (!response.ok) {
+          throw new Error("Daily room request failed");
+        }
+
+        const data = (await response.json()) as { url?: string };
+
+        if (isMounted) {
+          setDailyRoomUrl(data.url ?? fallbackDailyRoomUrl ?? null);
+        }
+      } catch {
+        if (isMounted) {
+          setDailyRoomUrl(fallbackDailyRoomUrl ?? null);
+        }
+      }
+    }
+
+    void loadRoom();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [apiUrl, fallbackDailyRoomUrl, session]);
 
   if (!session) {
     return null;
@@ -1554,11 +1987,11 @@ function WorkspaceShell({
       <main className="mx-auto max-w-md px-5 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-[calc(5rem+env(safe-area-inset-top))]">
         <div className="valence-screen-transition">{children}</div>
       </main>
-      <nav className="fixed bottom-[calc(0.65rem+env(safe-area-inset-bottom))] left-[calc(0.75rem+env(safe-area-inset-left))] right-[calc(0.75rem+env(safe-area-inset-right))] z-30">
-        <div className="relative mx-auto grid max-w-md grid-cols-4 rounded-2xl border border-border bg-card/95 p-1.5 backdrop-blur-xl">
+      <nav className="fixed bottom-[calc(0.25rem+env(safe-area-inset-bottom))] left-[calc(0.6rem+env(safe-area-inset-left))] right-[calc(0.6rem+env(safe-area-inset-right))] z-30">
+        <div className="relative mx-auto grid max-w-md grid-cols-4 rounded-[2.25rem] border border-border bg-card/98 p-1.5 backdrop-blur-xl">
           <span
             aria-hidden="true"
-            className="absolute bottom-1.5 left-1.5 top-1.5 z-0 rounded-xl bg-primary/12 transition-transform duration-300 ease-out"
+            className="absolute bottom-1.5 left-1.5 top-1.5 z-0 rounded-[1.65rem] bg-primary transition-transform duration-300 ease-out"
             style={{
               transform: `translateX(${activeNavIndex * 100}%)`,
               width: "calc((100% - 0.75rem) / 4)"
@@ -1571,8 +2004,8 @@ function WorkspaceShell({
             return (
               <Button
                 className={cn(
-                  "relative z-10 h-14 flex-col gap-1 rounded-xl text-[0.66rem]",
-                  isActive && "text-primary"
+                  "relative z-10 h-14 flex-col gap-1 rounded-[1.65rem] text-[0.66rem] text-foreground/75",
+                  isActive && "text-primary-foreground"
                 )}
                 key={item.page}
                 onClick={() => onNavigate(item.page)}
@@ -1598,7 +2031,9 @@ function WorkspaceShell({
 }
 
 function ActivePage({
+  liveData,
   onEnablePushNotifications,
+  onBookSession,
   onReset,
   onSelectPatient,
   onSelectSession,
@@ -1608,7 +2043,9 @@ function ActivePage({
   role,
   versions
 }: {
+  liveData: LiveDemoData;
   onEnablePushNotifications: () => void;
+  onBookSession: () => void;
   onReset: () => void;
   onSelectPatient: (patient: DemoPatient) => void;
   onSelectSession: (session: DemoSession) => void;
@@ -1620,7 +2057,13 @@ function ActivePage({
 }) {
   if (role === "patient") {
     if (page === "sessions") {
-      return <PatientSessionsScreen onSelectSession={onSelectSession} />;
+      return (
+        <PatientSessionsScreen
+          onBookSession={onBookSession}
+          onSelectSession={onSelectSession}
+          sessions={liveData.patientSessions}
+        />
+      );
     }
 
     if (page === "exercises") {
@@ -1643,11 +2086,22 @@ function ActivePage({
   }
 
   if (page === "sessions") {
-    return <TherapistSessionsScreen onSelectSession={onSelectSession} />;
+    return (
+      <TherapistSessionsScreen
+        onBookSession={onBookSession}
+        onSelectSession={onSelectSession}
+        sessions={liveData.therapistSessions}
+      />
+    );
   }
 
   if (page === "patients") {
-    return <TherapistPatientsScreen onSelectPatient={onSelectPatient} />;
+    return (
+      <TherapistPatientsScreen
+        onSelectPatient={onSelectPatient}
+        patients={liveData.patients}
+      />
+    );
   }
 
   if (page === "profile") {
@@ -1679,13 +2133,6 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
   const [selectedSession, setSelectedSession] = useState<DemoSession | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<DemoPatient | null>(null);
   const [callSession, setCallSession] = useState<DemoSession | null>(null);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    {
-      body: "Hi, this is the local message drawer. Send anything to test the interaction.",
-      id: "seed",
-      mine: false
-    }
-  ]);
   const [authState, dispatchAuth] = useReducer(authReducer, {
     isLoading: true,
     user: null
@@ -1702,6 +2149,16 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
       token: null
     });
   const role = flow.role ?? "patient";
+  const handleAppVersionReleased = useCallback(() => {
+    if (Capacitor.isNativePlatform()) {
+      void checkAndDownloadNativeUpdate(dispatchNativeUpdate);
+    }
+  }, []);
+  const {
+    data: liveData,
+    messages: chatMessages,
+    setMessages: setChatMessages
+  } = useLiveDemoData(supabase, role, handleAppVersionReleased);
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) {
@@ -1721,6 +2178,21 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
 
     return bindPushNotificationLifecycle(setPushRegistration);
   }, []);
+
+  useEffect(() => {
+    if (!supabase || pushRegistration.status !== "registered" || !pushRegistration.token) {
+      return;
+    }
+
+    void supabase.from("device_push_tokens").upsert(
+      {
+        platform: Capacitor.getPlatform() === "android" ? "android" : "ios",
+        token: pushRegistration.token,
+        user_id: null
+      },
+      { onConflict: "token" }
+    );
+  }, [pushRegistration.status, pushRegistration.token, supabase]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1765,45 +2237,6 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
     let isMounted = true;
     let appUrlOpenHandle: { remove: () => Promise<void> } | null = null;
 
-    async function exchangeSessionFromUrl(urlString: string) {
-      if (!supabase) {
-        return null;
-      }
-
-      const url = new URL(urlString);
-      const code = url.searchParams.get("code");
-
-      if (code) {
-        const { data, error: exchangeError } =
-          await supabase.auth.exchangeCodeForSession(code);
-
-        if (exchangeError) {
-          return null;
-        }
-
-        return data.session?.user ?? null;
-      }
-
-      const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
-      const accessToken = hashParams.get("access_token");
-      const refreshToken = hashParams.get("refresh_token");
-
-      if (!accessToken || !refreshToken) {
-        return null;
-      }
-
-      const { data, error: sessionError } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken
-      });
-
-      if (sessionError) {
-        return null;
-      }
-
-      return data.session?.user ?? null;
-    }
-
     async function loadSession() {
       if (!supabase) {
         dispatchAuth({ type: "loaded", user: null });
@@ -1814,7 +2247,7 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
       const code = url.searchParams.get("code");
 
       if (code) {
-        await exchangeSessionFromUrl(url.toString());
+        await exchangeSessionFromUrl(supabase, url.toString());
         url.searchParams.delete("code");
         window.history.replaceState({}, "", url.toString());
       }
@@ -1832,9 +2265,9 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
 
     if (Capacitor.isNativePlatform()) {
       void App.addListener("appUrlOpen", async ({ url }) => {
-        const user = await exchangeSessionFromUrl(url);
+        const user = await exchangeSessionFromUrl(supabase, url);
 
-        void Browser.close().catch(() => {});
+        void InAppBrowser.close().catch(() => {});
 
         if (user && isMounted) {
           dispatchAuth({ type: "user-changed", user });
@@ -1916,10 +2349,24 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
     }
 
     if (isNative && data.url) {
-      await Browser.open({
-        presentationStyle: "fullscreen",
-        url: data.url
-      });
+      try {
+        const result = await InAppBrowser.openSecureWindow({
+          authEndpoint: data.url,
+          redirectUri: getRedirectTo(),
+          prefersEphemeralWebBrowserSession: false
+        });
+        const user = await exchangeSessionFromUrl(supabase, result.redirectedUri);
+
+        if (user) {
+          dispatchAuth({ type: "user-changed", user });
+        }
+      } catch (authError) {
+        setError(
+          authError instanceof Error
+            ? authError.message
+            : "We could not complete the secure sign-in flow."
+        );
+      }
     }
   }
 
@@ -2017,7 +2464,7 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
     navigateWithinApp("home");
   }
 
-  function sendChatMessage(body: string) {
+  async function sendChatMessage(body: string) {
     const userMessage: ChatMessage = {
       body,
       id: `user-${Date.now()}`,
@@ -2026,16 +2473,91 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
 
     setChatMessages((current) => [...current, userMessage]);
 
+    if (supabase && liveData.activeConversationId) {
+      await supabase.from("messages").insert({
+        body,
+        conversation_id: liveData.activeConversationId,
+        delivery_status: "sent",
+        is_demo: true,
+        sender_user_id:
+          role === "therapist" ? demoProviderUserId : demoPatientUserId
+      });
+    }
+
     window.setTimeout(() => {
-      setChatMessages((current) => [
-        ...current,
-        {
-          body: "This is not connected to backend, but this is how messages look.",
-          id: `reply-${Date.now()}`,
-          mine: false
-        }
-      ]);
+      const reply = {
+        body: supabase
+          ? "This came back through the demo data path. Realtime will keep this panel updated."
+          : "This is not connected to backend, but this is how messages look.",
+        id: `reply-${Date.now()}`,
+        mine: false
+      };
+
+      if (supabase && liveData.activeConversationId) {
+        void supabase.from("messages").insert({
+          body: reply.body,
+          conversation_id: liveData.activeConversationId,
+          delivery_status: "delivered",
+          is_demo: true,
+          sender_user_id:
+            role === "therapist" ? demoPatientUserId : demoProviderUserId
+        });
+        return;
+      }
+
+      setChatMessages((current) => [...current, reply]);
     }, 450);
+  }
+
+  async function createDemoSessionBooking() {
+    if (!supabase) {
+      const newSession: DemoSession = {
+        date: "Tomorrow",
+        id: `local-session-${Date.now()}`,
+        mode: "Video",
+        notes: "New local booking created from the demo UI.",
+        person: role === "therapist" ? "Olivia Martinez" : "Dr. Emma Lin",
+        status: "Requested",
+        time: "3:00 PM"
+      };
+      setSelectedSession(newSession);
+      return;
+    }
+
+    const startsAt = new Date();
+    startsAt.setDate(startsAt.getDate() + 3);
+    startsAt.setHours(15, 0, 0, 0);
+    const endsAt = new Date(startsAt.getTime() + 50 * 60 * 1000);
+
+    const { data: appointment, error: bookingError } = await supabase
+      .from("appointments")
+      .insert({
+        ends_at: endsAt.toISOString(),
+        is_demo: true,
+        modality: "video",
+        notes: "New demo booking created from the app.",
+        patient_id: "20000000-0000-4000-8000-000000000001",
+        provider_id: "30000000-0000-4000-8000-000000000001",
+        starts_at: startsAt.toISOString(),
+        status: "requested"
+      })
+      .select("id, starts_at, status, modality, notes")
+      .single();
+
+    if (bookingError || !appointment) {
+      setStatus("Could not create the demo booking yet.");
+      return;
+    }
+
+    setSelectedSession({
+      date: formatSessionDate(appointment.starts_at),
+      id: appointment.id,
+      mode: formatModality(appointment.modality),
+      notes: appointment.notes ?? "New demo booking created from the app.",
+      person: role === "therapist" ? "Olivia Martinez" : "Dr. Emma Lin",
+      status: "Requested",
+      time: formatSessionTime(appointment.starts_at)
+    });
   }
 
   const updateDrawer = (
@@ -2187,7 +2709,9 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
         role={role}
       >
         <ActivePage
+          liveData={liveData}
           onEnablePushNotifications={() => void enablePushNotifications()}
+          onBookSession={() => void createDemoSessionBooking()}
           onReset={resetDemoFlow}
           onSelectPatient={(patient) => setSelectedPatient(patient)}
           onSelectSession={(session) => setSelectedSession(session)}
@@ -2198,11 +2722,11 @@ export function AppAuthExperience({ page = "home" }: { page?: PageKey }) {
           versions={versions}
         />
       </WorkspaceShell>
-      <ChatDrawer
+      <MessagesPanel
         keyboardInset={keyboardInset}
         messages={chatMessages}
-        onOpenChange={setMessagesOpen}
-        onSend={sendChatMessage}
+        onClose={() => setMessagesOpen(false)}
+        onSend={(body) => void sendChatMessage(body)}
         open={messagesOpen}
         role={role}
       />
