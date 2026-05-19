@@ -20,6 +20,8 @@ jobs:
     env:
       CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
       CAPGO_PRIVATE_KEY: ${{ secrets.CAPGO_PRIVATE_KEY }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
 
     steps:
       - name: Checkout repository
@@ -76,3 +78,17 @@ jobs:
             --bundle "$bundle_version" \
             --comment "$GITHUB_SHA" \
             --key-data-v2 "$CAPGO_PRIVATE_KEY"
+          if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SECRET_KEY" ]; then
+            curl --fail --silent --show-error \
+              "$SUPABASE_URL/rest/v1/app_versions" \
+              -H "apikey: $SUPABASE_SECRET_KEY" \
+              -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
+              -H "Content-Type: application/json" \
+              -H "Prefer: resolution=merge-duplicates" \
+              --data "$(
+                printf '{"platform":"ios","release_number":%s,"bundle_version":"%s","capgo_channel":"production","status":"released","notes":"%s"}' \
+                  "$release_number" "$bundle_version" "$GITHUB_SHA"
+              )"
+          else
+            echo "::warning::SUPABASE_URL and SUPABASE_SECRET_KEY are required for realtime app_versions announcements."
+          fi
